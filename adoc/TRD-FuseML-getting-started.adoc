@@ -21,7 +21,7 @@ When {company} set out to create a new, indispensible AI/ML tool for its custome
 
 The defining characteristic of {centralProduct} is that it provides the "glue" (aka integration logic) to fuse together the inputs and outputs of various AI/ML tools that are applied at different stages of the AI/ML workflow. Not only does this mean each team can use their favorite tool to accomplish their portion of the workflow, but it also allows the flexibility to change tools based on the stage of the project. 
 
-For example, early an ML project's lifecycle Data Scientists will often rely on tools that provide deeper introspection at the cost of performance. As well, MLOps engineers might prefer automation tools that provide break points for them to evaluate the process at various stages. They might also leverage presentation software that is free and easy to use. Wehn a project is ready for production, tools that emphasize performance and automation will be used throughout the ML workflow. 
+For example, early an ML project's lifecycle Data Scientists will often rely on tools that provide deeper introspection at the cost of performance. As well, MLOps engineers might prefer automation tools that provide break points for them to evaluate the process at various stages. They might also leverage presentation software that is free and easy to use. When a project is ready for production, the need will shift towards tools that emphasize performance and automation.
 
 
 ////
@@ -66,6 +66,7 @@ an agile data platform that helps organizations achieve their cloud native goals
 
 == Technical overview
 
+////
 SUSE Rancher is a lightweight Kubernetes installer that supports installation on bare-metal and virtualized servers.  
 Rancher solves a common issue in the Kubernetes community: installation complexity.  With Rancher, Kubernetes installation is simplified, 
 regardless of what operating systems and platforms you are running.
@@ -80,7 +81,7 @@ In practice, the process is as follows:
 * Deploy https://docs.mongodb.com/kubernetes-operator/master/[MongoDB Enterprise Kubernetes Operator]
 * Configure a storage class and define storage requirements via Operator
 * Test failover by killing or cordoning nodes in your cluster
-
+////
 
 == Value of HA for data
 
