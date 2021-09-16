@@ -85,6 +85,7 @@ In practice, the process is as follows:
 
 == Value of HA for data
 
+////
 One of the primary benefits of running a Kubernetes environment is flexibility, the ability to easily adapt to varying circumstances.  
 Traditional database deployments exist in fairly static configurations and environments.  The beauty of running a data-oriented service 
 on Kubernetes lies in maintaining stability while enabling adaptability to meet real-world situations.
@@ -105,10 +106,11 @@ In this configuration, the failover process generally completes within a minute.
 It may take about 30 seconds for the members of a replica set to declare a primary inaccessible. 
 One of the remaining secondaries will then be enabled as the "new primary".  The election itself may take another 10 to 30 seconds.  
 During this time, the data will be preserved in a virtually seamless way for dependent services.
-
+////
 
 == Setting up a cluster with SUSE Rancher
 
+////
 SUSE Rancher is a tool to install and configure Kubernetes in a choice of environments including bare metal, virtual machines, and IaaS. 
 Rancher is a complete container management platform built on upstream Kubernetes.
 It consists of three major components:
@@ -126,10 +128,11 @@ For reference, see Rancher deployment guides for specific details on installatio
 By the end of this step, you should have a cluster with one master and three worker nodes.
 
 image::rancher-mongo-3.png[scaledwidth="75%", align="center"]
-
+////
 
 == Storage considerations
 
+////
 When deploying an application that needs to retain data, you need to create persistent storage. 
 Persistent storage allows you to store application data external from the pod running your application. 
 This storage practice allows you to maintain application data, even if the application’s pod fails.
@@ -165,11 +168,13 @@ https://openebs.io[OpenEBS]:: Open source, CNCF Sandbox storage with flexible st
 https://ceph.io[Ceph]:: Powerful, open source, general purpose storage in the CNCF Sandbox – requires third-party integration
 
 https://portworx.com[Portworx]:: Proprietary solution with Rancher certified integration - installation steps can be found https://docs.portworx.com/install-with-other/rancher/rancher-2.x[here]
+////
 
 
 
 === Setting up your storage
 
+////
 Before proceeding, be sure that you understand the Kubernetes concepts of persistent volumes, persistent volume claims, and 
 storage classes.  For more information, refer to 
 https://rancher.com/docs/rancher/v2.x/en/cluster-admin/volumes-and-storage/how-storage-works[How Persistent Storage Works] in the Rancher documentation.
@@ -195,10 +200,12 @@ The overall workflow for provisioning new storage is as follows:
 3. Mount the PVC as a volume for your workload.
 
 See section https://rancher.com/docs/rancher/v2.x/en/cluster-admin/volumes-and-storage/provisioning-new-storage[Dynamically Provisioning New Storage in Rancher] for details and prerequisites.
+////
 
 
 === Creating a storage class for MongoDB
 
+////
 When the Kubernetes cluster is running and storage is configured, it is time to deploy a highly available MongoDB database.
 
 MongoDB resources are created in Kubernetes as custom resources. After you create or update a MongoDB Kubernetes resource specification, 
@@ -284,18 +291,22 @@ spec:
 ----
 
 Full details can be found https://docs.mongodb.com/kubernetes-operator/master/reference/k8s-operator-specification[here].
+////
 
 
 == Creating a persistent volume
 
+////
 You can now create a persistent volume claim (PVC) based on the storage class. Dynamic provisioning will be created without explicitly 
 provisioning a persistent volume (PV). As part of deployment, the Kubernetes operator creates 
 https://kubernetes.io/docs/concepts/storage/persistent-volumes[persistent volumes] for the Ops Manager StatefulSets. 
 The Kubernetes container uses persistent volumes to maintain the cluster state between restarts.
+////
 
 
 == Deploying MongoDB Kubernetes Operator
 
+////
 Kubernetes needs help creating and managing stateful applications like databases.  The typical lifecycle events of a MongoDB cluster may 
 include provisioning storage and computing power, configuring network connections, setting up users, and more.  
 This is where the MongoDB Enterprise Kubernetes Operator comes in.  It translates the human knowledge of how to create a MongoDB 
@@ -360,10 +371,12 @@ Also, sharded clusters can be created to enable greater throughput across a dist
 
 Additionally, see specific https://github.com/mongodb/mongodb-enterprise-kubernetes[documentation] and steps for full installation 
 and configuration options.
+////
 
 
 == Deploying MongoDB Ops Manager resource
 
+////
 Kubernetes needs help creating and managing stateful applications like databases.  The typical lifecycle events of a MongoDB cluster may 
 include provisioning, storage and compute. Ops Manager can be deployed via the MongoDB Kubernetes Operator to manage MongoDB resources 
 in a cluster.  The Operator manages the lifecycle of each of these deployments differently.
@@ -400,10 +413,12 @@ spec:
     version: <mongodbversion>
     persistent: true
 ----
+////
 
 
 == Loading and querying the database
 
+////
 When the database has been created, you can populate it with some sample data.
 
 First, find the pod that is running MongoDB:
@@ -506,10 +521,12 @@ And you can get a list of the names of the ships:
  { "name" : "Scimitar" }
  { "name" : "Narada" }
 ----
+////
 
 
 == Simulating node failure & restoration
 
+////
 Next, simulate a node failure by cordoning off the node on which MongoDB is running:
 
 [source,bash]
@@ -637,10 +654,12 @@ db.ships.find().pretty()
 ----
 
 For further validation, you can run all the same initial steps to compare that data is still available with originally queried values.
+////
 
 
 == Summary
 
+////
 MongoDB with SUSE Rancher makes it possible to easily build, deploy, and manage resilient, scalable data services.
 
 
@@ -672,3 +691,5 @@ include::common_sbp_legal_notice.adoc[]
 include::common_gfdl1.2_i.adoc[]
 
 //end
+
+////
