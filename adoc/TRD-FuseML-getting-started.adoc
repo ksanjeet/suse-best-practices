@@ -14,7 +14,10 @@
 :sles: SUSE Linux Enterprise Server
 
 :centralProduct: FuseML
+:rancher: SUSE Rancher
 :company: SUSE
+:operatingSystem: openSUSE JeOS 15.3
+
 == Motivation
 
 When {company} set out to create a new, indispensible AI/ML tool for its customers, we were certain that we didn’t want to create just another framework/training/analysis tool. What the wild west of AI/ML needs more than anything else is something that both empowers AI practicioners to use the right tool for the job at hand, as well as removes the friction associated with integrating these tools into the larger AI/ML workflow. 
@@ -66,9 +69,25 @@ an agile data platform that helps organizations achieve their cloud native goals
 
 == Technical overview
 
-FuseML can run locally, on its own Kubernetes cluster, or alongside an AI/ML workload on a shared Kubernetes cluster. In this design we will use SUSE Rancher to deploy FuseML in SUSE RKE2. RKE2 uses a cutting edge architecture which adapts the prinicpals of containerization for Kuberetes cluster itself. RKE2 deploys as a single, static binary with all dependencies handled inside. Not only does this create fantastic portability, it also significantly enhances security. This design is part of what allows RKE2 to be FIPS compliant with no modifications.
+FuseML can run locally, on its own Kubernetes cluster, or alongside an AI/ML workload on a shared Kubernetes cluster. In this design we will use {rancher} to deploy FuseML in SUSE RKE2. RKE2 uses a cutting edge architecture which adapts the prinicpals of containerization for Kuberetes cluster itself. RKE2 deploys as a single, static binary with all dependencies handled inside. Not only does this create fantastic portability, it also significantly enhances security. This design is part of what allows RKE2 to be FIPS compliant with no modifications.
 
-FuseML will be deployed into its own Rancher Project, alongside the machine learning workload it will deploy and enhance. Using Rancher projects further improves security by separating administrative access from user access as well as allowing the application of resource minimums and limits that ensure the highest, consistent performance possible.
+FuseML will be deployed into its own {rancher} Project, alongside the machine learning workload it will deploy and enhance. Using {rancher} projects further improves security by separating administrative access from user access as well as allowing the application of resource minimums and limits that ensure the highest, consistent performance possible.
+
+For the simplest deployment we will use two virtual machines with the following configurations:
+
+* name "suse-rancher-VM":
+** 2 vCPUs, 4 GB RAM, 10GB virtual disk
+** Virtual bridge/NAT network with access to the Internet
+** {operatingsystem}
+** {rancher} v2.6 running on Docker CE
+
+* name "fuseml-rke2-VM":
+** 2 vCPUs, 8 GB RAM, 20GB virtual disk
+** Virtual bridge/NAT network with access to the Internet
+** {operatingsystem}
+** Latest release of RKE2
+
+This configuration can be deployed on any system or systems that meet the minimum hardware requirements. A system with 16GB of total RAM could be used as long as there were very few other tasks running at the same time. The VMs do not need to be on the same network but they do need to be able access the Internet as well as each other. In addition, the user needs to be able to access the VMs through a web browser. 
 
 ////
 SUSE Rancher is a lightweight Kubernetes installer that supports installation on bare-metal and virtualized servers.  
@@ -87,7 +106,6 @@ In practice, the process is as follows:
 * Test failover by killing or cordoning nodes in your cluster
 ////
 
-== Value of HA for data
 
 ////
 One of the primary benefits of running a Kubernetes environment is flexibility, the ability to easily adapt to varying circumstances.  
@@ -111,8 +129,54 @@ It may take about 30 seconds for the members of a replica set to declare a prima
 One of the remaining secondaries will then be enabled as the "new primary".  The election itself may take another 10 to 30 seconds.  
 During this time, the data will be preserved in a virtually seamless way for dependent services.
 ////
+== Running {operatingsystem}
 
-== Setting up a cluster with SUSE Rancher
+{operatingsystem} is a minimalized, virtualization specific edition of {sles} that runs as a pre-installed operating system. Pre-configured images are available for KVM, Xen, VMware, OpenStack, and Hyper-V. The OpenStack image can be run on KVM or Xen but allows the use of cloud-init for customization during the initial boot sequence.
+
+For this project we have chosen the KVM {operatingsystem} qcow2 image to allow for simple configuration. If cloud-init infrastructure is available, the OpenStack qcow2 image can be used for even easier and repeatable configuration.
+
+TIP: After downloading the {operatingsystem} image, we renamed it to match the hostname of the first VM (suse-rancher-VM in our case), then made a copy of it, naming the second copy appropriate for the second VM (fuseml-rke2-VM in our case). The initial boot of the {operatingsystem} image will invoke a configuration tool to customize the image. Making two copies of the image before attaching them to VMs allowed individualizing each VM.
+
+It is assumed that IP management is handled with a DHCP server or manually by the user during the initial boot process.
+
+NOTE: Since the {operatingsystem} image configures the root user account during the initial boot, the remainder of this process assumes the user is running the commands as the root user.
+
+
+
+== Setting up SUSE Rancher
+
+For this implentation we will run {rancher} on Docker Community Edition. While this cannot be used in production due to limitations in flexibility and performance, the installation process is extremely easy:
+
+* Install and start Docker CE on the first VM:
+[source,bash]
+----
+zypper -n in docker
+systemctl enable --now docker
+docker ps -a
+----
+** The output from the final command should complete without error and show the headers for the command, starting with "CONTAINER ID"
+
+IMPORTANT: The command below will cause the {rancher} server to generate self-signed certificates. Additional options can be used to include pre-existing TLS certificates or certificates issued by Let's Encrypt. See the appropriate documentation for more information.
+
+* Run the {rancher} server container:
+----
+docker run \
+	--detach \
+	--restart=unless-stopped \
+	--publish 80:80 --publish 443:443 \
+	--privileged \
+  --name rancher \
+  rancher/rancher
+----
+
+* After the container is running, execute the following command to get the bootstrap password:
+----
+docker logs rancher 2>&1 | grep "Bootstrap Password"
+----
+
+* Use a web browser to access the IP address of the first VM on port 443
+
+NOTE: IF the virtual machines are behind a NAT router it may be necessary to configure port forwarding for ports 80 and 443 to the first VM. Additionally, an SSH tunnel can be created to access the virtual machines. In our case we used an SSH tunnel through the KVM host to access ports 80 and 443 on the first VM with the command `ssh -L localhost:8080:10.236.1.11:80 -L localhost:4443:10.236.1.11:443 -N sles@kvm-host1.sandbox.local`. This allowed us to browse the {rancher} server at https://localhost:4443.
 
 ////
 SUSE Rancher is a tool to install and configure Kubernetes in a choice of environments including bare metal, virtual machines, and IaaS. 
