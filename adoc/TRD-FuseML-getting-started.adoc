@@ -66,6 +66,10 @@ an agile data platform that helps organizations achieve their cloud native goals
 
 == Technical overview
 
+FuseML can run locally, on its own Kubernetes cluster, or alongside an AI/ML workload on a shared Kubernetes cluster. In this design we will use SUSE Rancher to deploy FuseML in SUSE RKE2. RKE2 uses a cutting edge architecture which adapts the prinicpals of containerization for Kuberetes cluster itself. RKE2 deploys as a single, static binary with all dependencies handled inside. Not only does this create fantastic portability, it also significantly enhances security. This design is part of what allows RKE2 to be FIPS compliant with no modifications.
+
+FuseML will be deployed into its own Rancher Project, alongside the machine learning workload it will deploy and enhance. Using Rancher projects further improves security by separating administrative access from user access as well as allowing the application of resource minimums and limits that ensure the highest, consistent performance possible.
+
 ////
 SUSE Rancher is a lightweight Kubernetes installer that supports installation on bare-metal and virtualized servers.  
 Rancher solves a common issue in the Kubernetes community: installation complexity.  With Rancher, Kubernetes installation is simplified, 
