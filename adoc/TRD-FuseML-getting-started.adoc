@@ -82,7 +82,7 @@ For the simplest deployment we will use two virtual machines with the following 
 ** {rancher} v2.6 running on Docker CE
 
 * name "fuseml-rke2-VM":
-** 2 vCPUs, 8 GB RAM, 20GB virtual disk
+** 4 vCPUs, 8 GB RAM, 20GB virtual disk
 ** Virtual bridge/NAT network with access to the Internet
 ** {operatingsystem}
 ** Latest release of RKE2
@@ -169,14 +169,20 @@ docker run \
   rancher/rancher
 ----
 
-* After the container is running, execute the following command to get the bootstrap password:
+* After the container has been running for about two minutes, execute the following command to get the bootstrap password:
 ----
 docker logs rancher 2>&1 | grep "Bootstrap Password"
 ----
 
+NOTE: It can take a few minutes for the {rancher} container to present a web page. When it does, it will show a warning that the certificate is untrusted. Indicate that you understand the risks and continue.
+
 * Use a web browser to access the IP address of the first VM on port 443
 
-NOTE: IF the virtual machines are behind a NAT router it may be necessary to configure port forwarding for ports 80 and 443 to the first VM. Additionally, an SSH tunnel can be created to access the virtual machines. In our case we used an SSH tunnel through the KVM host to access ports 80 and 443 on the first VM with the command `ssh -L localhost:8080:10.236.1.11:80 -L localhost:4443:10.236.1.11:443 -N sles@kvm-host1.sandbox.local`. This allowed us to browse the {rancher} server at https://localhost:4443.
+NOTE: IF the virtual machines are behind a NAT router it may be necessary to configure port forwarding for ports 80 and 443 to the first VM. Additionally, an SSH tunnel can be created to access the virtual machines. In our case we used an SSH tunnel from our workstation (with the browser) through the KVM host to access ports 80 and 443 on the first VM. The command we used was `ssh -L localhost:8080:10.236.1.11:80 -L localhost:4443:10.236.1.11:443 -N sles@kvm-host1.sandbox.local`. This allowed us to browse the {rancher} server at https://localhost:4443.
+
+** Use the bootstrap password to log into the {rancher} UI and follow the instructions to set a specific Admin password.
+
+CAUTION: Make sure the "Server URL" uses https://, has the resolvable hostname or IP address of the first VM and does not indicate a port.
 
 ////
 SUSE Rancher is a tool to install and configure Kubernetes in a choice of environments including bare metal, virtual machines, and IaaS. 
@@ -240,7 +246,24 @@ https://portworx.com[Portworx]:: Proprietary solution with Rancher certified int
 
 
 
-=== Setting up your storage
+=== Installing RKE2
+
+* Run the following command the second VM
+
+From the Home screen, click the three horizontal (aka Hamburger Menu) lines in the top left corner
+
+Under Global Apps, select Cluster Management
+Click Create at the top right
+Move the slide from "RKE1" to "RKE2/K3s"
+Click the "Create Custom Cluster" button
+Name the cluster (fuseml-rke2 in our case)
+Click the Create button at the bottom of the screen
+
+CAUTION: If {rancher} server was installed with a self-signed certificate, check the box labeled "Insecure: Select this to skip TLS verification if your server has a self-signed certificate."
+Copy the Registration Command under Step 2
+As root, paste the command onto the command line for the second VM
+
+
 
 ////
 Before proceeding, be sure that you understand the Kubernetes concepts of persistent volumes, persistent volume claims, and 
@@ -271,7 +294,7 @@ See section https://rancher.com/docs/rancher/v2.x/en/cluster-admin/volumes-and-s
 ////
 
 
-=== Creating a storage class for MongoDB
+=== Creating a storage class for FuseML
 
 ////
 When the Kubernetes cluster is running and storage is configured, it is time to deploy a highly available MongoDB database.
