@@ -1,13 +1,13 @@
 :docinfo:
 
 // = {title}
-= {centralProduct} with RKE2 - Getting Started
+= {centralProduct} with {K8s} - Getting Started
 
-// SUSE RKE2 - FuseML
+// SUSE {K8s} - FuseML
 // :author: Alex Arnoldy
 :revnumber: 0.0.1
 :toc2:
-:toc-title: FuseML with RKE2 - Getting Started
+:toc-title: FuseML with {K8s} - Getting Started
 
 :toclevels: 4
 
@@ -17,6 +17,8 @@
 :rancher: SUSE Rancher
 :company: SUSE
 :operatingSystem: openSUSE JeOS 15.3
+:osURL: https://get.opensuse.org/leap/
+:K8s: RKE2
 
 == Motivation
 
@@ -69,7 +71,7 @@ an agile data platform that helps organizations achieve their cloud native goals
 
 == Technical overview
 
-FuseML can run locally, on its own Kubernetes cluster, or alongside an AI/ML workload on a shared Kubernetes cluster. In this design we will use {rancher} to deploy FuseML in SUSE RKE2. RKE2 uses a cutting edge architecture which adapts the prinicpals of containerization for Kuberetes cluster itself. RKE2 deploys as a single, static binary with all dependencies handled inside. Not only does this create fantastic portability, it also significantly enhances security. This design is part of what allows RKE2 to be FIPS compliant with no modifications.
+FuseML can run locally, on its own Kubernetes cluster, or alongside an AI/ML workload on a shared Kubernetes cluster. In this design we will use {rancher} to deploy FuseML in SUSE {K8s}. {K8s} uses a cutting edge architecture which adapts the prinicpals of containerization for Kuberetes cluster itself. {K8s} deploys as a single, static binary with all dependencies handled inside. Not only does this create fantastic portability, it also significantly enhances security. This design is part of what allows {K8s} to be FIPS compliant with no modifications.
 
 FuseML will be deployed into its own {rancher} Project, alongside the machine learning workload it will deploy and enhance. Using {rancher} projects further improves security by separating administrative access from user access as well as allowing the application of resource minimums and limits that ensure the highest, consistent performance possible.
 
@@ -85,7 +87,7 @@ For the simplest deployment we will use two virtual machines with the following 
 ** 4 vCPUs, 8 GB RAM, 20GB virtual disk
 ** Virtual bridge/NAT network with access to the Internet
 ** {operatingsystem}
-** Latest release of RKE2
+** Latest release of {K8s}
 
 This configuration can be deployed on any system or systems that meet the minimum hardware requirements. A system with 16GB of total RAM could be used as long as there were very few other tasks running at the same time. The VMs do not need to be on the same network but they do need to be able access the Internet as well as each other. In addition, the user needs to be able to access the VMs through a web browser. 
 
@@ -131,7 +133,7 @@ During this time, the data will be preserved in a virtually seamless way for dep
 ////
 == Running {operatingsystem}
 
-{operatingsystem} is a minimalized, virtualization specific edition of {sles} that runs as a pre-installed operating system. Pre-configured images are available for KVM, Xen, VMware, OpenStack, and Hyper-V. The OpenStack image can be run on KVM or Xen but allows the use of cloud-init for customization during the initial boot sequence.
+{operatingsystem} ({osurl}) is a minimalized, virtualization specific edition of {sles} that runs as a pre-installed operating system. Pre-configured images are available for KVM, Xen, VMware, OpenStack, and Hyper-V. The OpenStack image can be run on KVM or Xen but allows the use of cloud-init for customization during the initial boot sequence.
 
 For this project we have chosen the KVM {operatingsystem} qcow2 image to allow for simple configuration. If cloud-init infrastructure is available, the OpenStack qcow2 image can be used for even easier and repeatable configuration.
 
@@ -139,7 +141,9 @@ TIP: After downloading the {operatingsystem} image, we renamed it to match the h
 
 It is assumed that IP management is handled with a DHCP server or manually by the user during the initial boot process.
 
-NOTE: Since the {operatingsystem} image configures the root user account during the initial boot, the remainder of this process assumes the user is running the commands as the root user.
+TIP: After booting and configuring each VM, snapshot it to make it easier to restart the process or try different configurations.
+
+NOTE: Since the {operatingsystem} image configures the root user account during the initial boot, the remainder of this process assumes the commands are run as the root user.
 
 
 
@@ -166,7 +170,7 @@ docker run \
 	--publish 80:80 --publish 443:443 \
 	--privileged \
   --name rancher \
-  rancher/rancher
+  rancher/rancher -- -e CATTLE_BOOTSTRAP_PASSWORD=FuseML4Me!
 ----
 
 * After the container has been running for about two minutes, execute the following command to get the bootstrap password:
@@ -246,15 +250,32 @@ https://portworx.com[Portworx]:: Proprietary solution with Rancher certified int
 
 
 
-=== Installing RKE2
+=== Installing {K8s}
 
-* Run the following command the second VM
+.Run the following commands the second VM
 
+NOTE: Newer versions of containerd require AppArmor installed for certain operating systems. Here were are using SLES JeOS, which has AppArmor available but not fully installed.
+
+* Install AppArmor:
+----
+zypper in -t pattern apparmor
+----
+
+* Download and install {K8s}:
+----
+curl -sfL https://get.k3s.io | sh -
+----
+
+* Monitor the progress of the installation: `watch -c "kubectl get deployments -A"`
+** The {k8s} deployment is complete when elements of all the deployments (coredns, local-path-provisioner, metrics-server, and traefik) show at least "1" as "AVAILABLE"
+** Use Ctrl+c to exit the watch loop after all deployment pods are running
+
+////
 From the Home screen, click the three horizontal (aka Hamburger Menu) lines in the top left corner
 
 Under Global Apps, select Cluster Management
 Click Create at the top right
-Move the slide from "RKE1" to "RKE2/K3s"
+Move the slider from "RKE1" to "RKE2/K3s"
 Click the "Create Custom Cluster" button
 Name the cluster (fuseml-rke2 in our case)
 Click the Create button at the bottom of the screen
@@ -262,7 +283,7 @@ Click the Create button at the bottom of the screen
 CAUTION: If {rancher} server was installed with a self-signed certificate, check the box labeled "Insecure: Select this to skip TLS verification if your server has a self-signed certificate."
 Copy the Registration Command under Step 2
 As root, paste the command onto the command line for the second VM
-
+////
 
 
 ////
