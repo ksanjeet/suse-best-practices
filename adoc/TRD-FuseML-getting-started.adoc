@@ -166,10 +166,18 @@ zypper in -t pattern apparmor
 ----
 ////
 
+NOTE: Some Kubernetes features can be negatively affected by not having a unique hostname associated with an external IP address.
+
+* (Optional) If a hostname isn't already set in the /etc/hosts file and associated with an external IP address, update the /etc/hosts file so one line contains the external IP address, followed by the FQDN, followed by the hostname. For example:
+----
+172.16.240.91	  fuseml-k3s-vm.sandbox.local   fuseml-k3s-vm
+----
+////
 HOSTNAME="fuseml-k3s-vm.sandbox.local fuseml-k3s-vm"
 IPADDRESS=
 sed -i "/127.0.0.1/ s/localhost/localhost ${HOSTNAME}/" /etc/hosts
 hostnamectl set-hostname fuseml-k3s-vm
+////
 
 * Verify that AppArmor is showing as enabled (even though it's not fully installed):
 [source,bash]
@@ -275,7 +283,7 @@ As root, paste the command onto the command line for the second VM
 ////
 
 
-=== Installing FuseML
+=== Installing the FuseML Installer utility
 
 * The fuseml-installer uses helm and git, so install them first:
 [source,bash]
@@ -289,9 +297,48 @@ zypper in helm git
 curl -sfL https://raw.githubusercontent.com/fuseml/fuseml/main/install.sh | sh -
 ----
 
-=== Deploying FuseML
+=== Installing FuseML 
 
+* Verify the version of the of the fuseml-installer:
+[source,bash]
+----
+fuseml-installer version
+----
+
+* Install FuseML on your {k8s} cluster:
+[source,bash]
+----
 fuseml-installer install
+----
+
+NOTE: This command will go through several steps to install of all of FuseML components. The entire process should take less than 15 minutes. 
+
+IMPORTANT: At the end of the installer output will be a statement that provides the URL for the FuseML server, such as `export FUSEML_SERVER_URL=http://fuseml-core.172.16.240.91.nip.io`. This URL requires name resolution from a specific Internet DNS server. If this VM cannot reach the DNS server, you can add the gitea.w.x.y.z.nip.io, tekton.w.x.y.z.nip.io, and fuseml-core.w.x.y.z.nip.io URLs to the /etc/hosts file.
+
+* Verify the VM can resolve the URLs for the FuseML services with the `getent hosts` command:
+
+[source,bash]
+----
+export FUSEML_SERVER=$(kubectl get VirtualService -n fuseml-core fuseml-core -o jsonpath="{.spec.hosts[0]}")
+getent hosts ${FUSEML_SERVER}
+----
+
+* Place the `export FUSEML_SERVER_URL` command from the installation output into the ~/.bashrc file and source the file:
+
+[source,bash]
+----
+echo "export FUSEML_SERVER_URL=http://${FUSEML_SERVER}" >> ~/.bashrc
+source ~/.bashrc
+----
+
+NOTE: After a successfull installation, the `fuseml` command line tool will be left in the current working directory. For ease of use, it's a good idea to move it to a directory in your PATH, such as /usr/local/bin.
+
+* Move the `fuseml` tool into /usr/local/bin:
+[source,bash]
+----
+mv fuseml /usr/local/bin/
+----
+
 
 ////
 When the Kubernetes cluster is running and storage is configured, it is time to deploy a highly available MongoDB database.
