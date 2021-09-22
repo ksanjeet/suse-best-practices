@@ -18,7 +18,7 @@
 :company: SUSE
 :operatingSystem: openSUSE JeOS 15.3
 :osURL: https://get.opensuse.org/leap/
-:K8s: RKE2
+:K8s: K3s
 
 == Motivation
 
@@ -83,7 +83,7 @@ For the simplest deployment we will use two virtual machines with the following 
 ** {operatingsystem}
 ** {rancher} v2.6 running on Docker CE
 
-* name "fuseml-rke2-VM":
+* name "fuseml-k3s-VM":
 ** 4 vCPUs, 8 GB RAM, 20GB virtual disk
 ** Virtual bridge/NAT network with access to the Internet
 ** {operatingsystem}
@@ -91,53 +91,13 @@ For the simplest deployment we will use two virtual machines with the following 
 
 This configuration can be deployed on any system or systems that meet the minimum hardware requirements. A system with 16GB of total RAM could be used as long as there were very few other tasks running at the same time. The VMs do not need to be on the same network but they do need to be able access the Internet as well as each other. In addition, the user needs to be able to access the VMs through a web browser. 
 
-////
-SUSE Rancher is a lightweight Kubernetes installer that supports installation on bare-metal and virtualized servers.  
-Rancher solves a common issue in the Kubernetes community: installation complexity.  With Rancher, Kubernetes installation is simplified, 
-regardless of what operating systems and platforms you are running.
-
-This document reviews considerations for deploying and managing a highly available, MongoDB NoSQL database on a 
-SUSE Rancher Kubernetes cluster.
-
-In practice, the process is as follows:
-
-* Install a Kubernetes cluster through Rancher Kubernetes Engine
-* Install a cloud native storage solution on Kubernetes
-* Deploy https://docs.mongodb.com/kubernetes-operator/master/[MongoDB Enterprise Kubernetes Operator]
-* Configure a storage class and define storage requirements via Operator
-* Test failover by killing or cordoning nodes in your cluster
-////
-
-
-////
-One of the primary benefits of running a Kubernetes environment is flexibility, the ability to easily adapt to varying circumstances.  
-Traditional database deployments exist in fairly static configurations and environments.  The beauty of running a data-oriented service 
-on Kubernetes lies in maintaining stability while enabling adaptability to meet real-world situations.
-
-Imagine a scenario where your e-commerce site is consistently taking 100 orders per day.  Suddenly, a viral marketing event occurs, 
-and your site is pushed to 5000 orders per day for a day.  This increase could easily lead to data overload – or worse, 
-corruption or downtime, which could result to considerable loss of revenue.  Having a way to design for such failure scenarios 
-and maintain resilient operations is a tangible market advantage.
-
-MongoDB can run in a single node configuration and in a clustered configuration using replica sets (not to be confused with 
-Kubernetes Stateful Sets). A replica set is a group of MongoDB instances that maintain the same data. A replica set contains 
-several data-bearing nodes and optionally one arbiter node. Of the data-bearing nodes, one and only one member is deemed the primary node,
-while the other nodes are deemed secondary nodes.  Resiliency of the data is achieved, as illustrated below.
-
-image::rancher-mongo-1.png[scaledwidth="75%", align="center"]
-
-In this configuration, the failover process generally completes within a minute.  
-It may take about 30 seconds for the members of a replica set to declare a primary inaccessible. 
-One of the remaining secondaries will then be enabled as the "new primary".  The election itself may take another 10 to 30 seconds.  
-During this time, the data will be preserved in a virtually seamless way for dependent services.
-////
 == Running {operatingsystem}
 
 {operatingsystem} ({osurl}) is a minimalized, virtualization specific edition of {sles} that runs as a pre-installed operating system. Pre-configured images are available for KVM, Xen, VMware, OpenStack, and Hyper-V. The OpenStack image can be run on KVM or Xen but allows the use of cloud-init for customization during the initial boot sequence.
 
 For this project we have chosen the KVM {operatingsystem} qcow2 image to allow for simple configuration. If cloud-init infrastructure is available, the OpenStack qcow2 image can be used for even easier and repeatable configuration.
 
-TIP: After downloading the {operatingsystem} image, we renamed it to match the hostname of the first VM (suse-rancher-VM in our case), then made a copy of it, naming the second copy appropriate for the second VM (fuseml-rke2-VM in our case). The initial boot of the {operatingsystem} image will invoke a configuration tool to customize the image. Making two copies of the image before attaching them to VMs allowed individualizing each VM.
+TIP: After downloading the {operatingsystem} image, we renamed it to match the hostname of the first VM (suse-rancher-VM in our case), then made a copy of it, naming the second copy appropriate for the second VM (fuseml-{k8s}-VM in our case). The initial boot of the {operatingsystem} image will invoke a configuration tool to customize the image. Making two copies of the image before attaching them to VMs allowed individualizing each VM.
 
 It is assumed that IP management is handled with a DHCP server or manually by the user during the initial boot process.
 
@@ -163,6 +123,7 @@ docker ps -a
 IMPORTANT: The command below will cause the {rancher} server to generate self-signed certificates. Additional options can be used to include pre-existing TLS certificates or certificates issued by Let's Encrypt. See the appropriate documentation for more information.
 
 * Run the {rancher} server container:
+[source,bash]
 ----
 docker run \
 	--detach \
@@ -170,10 +131,12 @@ docker run \
 	--publish 80:80 --publish 443:443 \
 	--privileged \
   --name rancher \
-  rancher/rancher -- -e CATTLE_BOOTSTRAP_PASSWORD=FuseML4Me!
+  -e CATTLE_BOOTSTRAP_PASSWORD=FuseML4Me! \
+  rancher/rancher 
 ----
 
 * After the container has been running for about two minutes, execute the following command to get the bootstrap password:
+[source,bash]
 ----
 docker logs rancher 2>&1 | grep "Bootstrap Password"
 ----
@@ -188,87 +151,113 @@ NOTE: IF the virtual machines are behind a NAT router it may be necessary to con
 
 CAUTION: Make sure the "Server URL" uses https://, has the resolvable hostname or IP address of the first VM and does not indicate a port.
 
-////
-SUSE Rancher is a tool to install and configure Kubernetes in a choice of environments including bare metal, virtual machines, and IaaS. 
-Rancher is a complete container management platform built on upstream Kubernetes.
-It consists of three major components:
-
-* A certified Kubernetes Distribution – Rancher Kubernetes Engine (RKE)
-* A Kubernetes Management platform (Rancher)
-* Application Catalog and management (Third-party)
-
-Rancher has the capabilities to manage any Kubernetes cluster from a central location, via the
-Rancher server.  As illustrated below, Rancher can manage any Kubernetes flavor and is not restricted to RKE.
-
-image::rancher-mongo-2.png[scaledwidth="75%", align="center"]
-
-For reference, see Rancher deployment guides for specific details on installation.    
-By the end of this step, you should have a cluster with one master and three worker nodes.
-
-image::rancher-mongo-3.png[scaledwidth="75%", align="center"]
-////
-
-== Storage considerations
-
-////
-When deploying an application that needs to retain data, you need to create persistent storage. 
-Persistent storage allows you to store application data external from the pod running your application. 
-This storage practice allows you to maintain application data, even if the application’s pod fails.
-
-A variety of storage options exist and can be used to create an HA data solution with Rancher.  
-Some considerations you may need to follow for your storage solution include:
-
-* Volumes as persistent storage for the distributed stateful applications
-
-* Partitioned block storage for Kubernetes volumes with or without a cloud provider
-
-* Replicated block storage across multiple nodes and data centers to increase availability
-
-* Secondary data backup storage (for example, NFS or S3)
-
-* Cross-cluster disaster recovery volumes
-
-* Recurring volume snapshots
-
-* Recurring backups to secondary storage
-
-* Non-disruptive upgrades
-
-
-
-Some common storage solutions to consider are as follows:
-
-https://longhorn.io[Longhorn]:: Distributed block storage system for Kubernetes. Originally developed by Rancher Labs.  
-Currently sandbox project of the Cloud Native Computing Foundation
-
-https://openebs.io[OpenEBS]:: Open source, CNCF Sandbox storage with flexible storage engine options - requires third-party integration
-
-https://ceph.io[Ceph]:: Powerful, open source, general purpose storage in the CNCF Sandbox – requires third-party integration
-
-https://portworx.com[Portworx]:: Proprietary solution with Rancher certified integration - installation steps can be found https://docs.portworx.com/install-with-other/rancher/rancher-2.x[here]
-////
-
-
 
 === Installing {K8s}
 
 .Run the following commands the second VM
 
-NOTE: Newer versions of containerd require AppArmor installed for certain operating systems. Here were are using SLES JeOS, which has AppArmor available but not fully installed.
+NOTE: Newer versions of containerd require AppArmor to be installed for certain operating systems. Here were are using SLES JeOS, which has AppArmor available but not fully installed. AppArmor isn't needed here so we will disable it.
 
+////
 * Install AppArmor:
+[source,bash]
 ----
 zypper in -t pattern apparmor
 ----
+////
+
+HOSTNAME="fuseml-k3s-vm.sandbox.local fuseml-k3s-vm"
+IPADDRESS=
+sed -i "/127.0.0.1/ s/localhost/localhost ${HOSTNAME}/" /etc/hosts
+hostnamectl set-hostname fuseml-k3s-vm
+
+* Verify that AppArmor is showing as enabled (even though it's not fully installed):
+[source,bash]
+----
+cat /sys/module/apparmor/parameters/enabled
+----
+** Returns "Y" if AppArmor is considered to be enabled
+
+* Disable AppArmor:
+[source,bash]
+----
+sed -i '/GRUB_CMDLINE_LINUX_DEFAULT/ s/quiet/quiet apparmor=0/' /etc/default/grub
+grub2-mkconfig -o /boot/grub2/grub.cfg
+reboot
+----
+
+* After the VM has rebooted, ensure AppArmor is now showing as not enabled 
+[source,bash]
+----
+cat /sys/module/apparmor/parameters/enabled
+----
+** Returns "N" 
 
 * Download and install {K8s}:
+[source,bash] 
 ----
-curl -sfL https://get.k3s.io | sh -
+curl -sfL https://get.k3s.io | sh -s - --disable=traefik 
+#curl -sfL https://get.k3s.io | sh -s - --disable=traefik --node-name=fuseml-k3s-vm 
 ----
 
 * Monitor the progress of the installation: `watch -c "kubectl get deployments -A"`
-** The {k8s} deployment is complete when elements of all the deployments (coredns, local-path-provisioner, metrics-server, and traefik) show at least "1" as "AVAILABLE"
+** The {k8s} deployment is complete when elements of all the deployments (coredns, local-path-provisioner, and metrics-server) show at least "1" as "AVAILABLE"
 ** Use Ctrl+c to exit the watch loop after all deployment pods are running
+
+* While the kubectl tool built into {k8s} knows where to find the KUBECONFIG file for this cluster, other utilities don't. Create a link from the KUBECONFIG file to the location it is normally found:
+[source,bash]
+----
+ln -s /etc/rancher/k3s/k3s.yaml .kube/config
+----
+
+
+== Deploy MetalLB load balancer
+
+* Pull and apply the MetalLB manifests:
+
+[source,bash] 
+----
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/namespace.yaml
+kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/metallb.yaml
+# On first install only
+kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
+----
+
+NOTE: A static IP address normally falls outside the range of IP addresses that a DHCP server will assign. If this is running in a private environment (i.e. a laptop), and there aren't IP static addresses available, you can pick an IP address at the top of the subnet, verify it is not in use, and use it as your static IP address.
+
+* Provide at least one static IP address to MetalLB (if only providing one IP address, set that IP as both DEFAULT_IP_RANGE_START and DEFAULT_IP_RANGE_END):
+
+[source,bash] 
+----
+export DEFAULT_IP_RANGE_START=
+export DEFAULT_IP_RANGE_END=
+----
+
+* Create the MetalLB configuration file for layer 2 routing. See https://metallb.universe.tf/configuration/ for other routing options and https://raw.githubusercontent.com/google/metallb/v0.9.3/manifests/example-config.yaml for lots of configuration options
+
+[source,bash] 
+----
+cat <<EOF> metallb-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - ${DEFAULT_IP_RANGE_START}-${DEFAULT_IP_RANGE_END}
+EOF
+----
+
+* Create configmap: `kubectl apply -f metallb-config.yaml`
+
+* Verify the configuration was applied correctly (especially review the IP address pool): `kubectl get configmap config -n metallb-system -o yaml`
+
+* Verify the MetalLB load balancer is running: `kubectl get all -n metallb-system`
 
 ////
 From the Home screen, click the three horizontal (aka Hamburger Menu) lines in the top left corner
@@ -286,36 +275,23 @@ As root, paste the command onto the command line for the second VM
 ////
 
 
-////
-Before proceeding, be sure that you understand the Kubernetes concepts of persistent volumes, persistent volume claims, and 
-storage classes.  For more information, refer to 
-https://rancher.com/docs/rancher/v2.x/en/cluster-admin/volumes-and-storage/how-storage-works[How Persistent Storage Works] in the Rancher documentation.
+=== Installing FuseML
 
-The workflow for setting up existing storage is as follows:
+* The fuseml-installer uses helm and git, so install them first:
+[source,bash]
+----
+zypper in helm git
+----
 
-. Ensure you have access to set up your persistent storage. This may be storage in an infrastructure provider, or it could be your own storage.
+* Download and run the fuseml-installer utility:
+[source,bash]
+----
+curl -sfL https://raw.githubusercontent.com/fuseml/fuseml/main/install.sh | sh -
+----
 
-. Add a persistent volume (PV) that refers to the persistent storage.
+=== Deploying FuseML
 
-. Add a persistent volume claim (PVC) that refers to the PV.
-
-. Mount the PVC as a volume in your workload.
-
-For further details and prerequisites, read the Rancher documentation section 
-https://rancher.com/docs/rancher/v2.x/en/cluster-admin/volumes-and-storage/attaching-existing-storage[Setting Up Existing Storage].
-
-
-The overall workflow for provisioning new storage is as follows:
-
-1. Add a StorageClass and configure it to use your storage provider. The StorageClass could refer to storage in an infrastructure provider, or it could refer to your own storage.
-2. Add a persistent volume claim (PVC) that refers to the storage class.
-3. Mount the PVC as a volume for your workload.
-
-See section https://rancher.com/docs/rancher/v2.x/en/cluster-admin/volumes-and-storage/provisioning-new-storage[Dynamically Provisioning New Storage in Rancher] for details and prerequisites.
-////
-
-
-=== Creating a storage class for FuseML
+fuseml-installer install
 
 ////
 When the Kubernetes cluster is running and storage is configured, it is time to deploy a highly available MongoDB database.
