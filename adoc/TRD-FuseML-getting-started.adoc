@@ -346,14 +346,9 @@ fuseml-installer extensions --add kfserving
 
 .FuseML Workflow runs are highly dependent on CPU and memory resources. A system configured with minimal resources will take noticeably longer to complete the example runs.
 
-
-
-
 == Summary
 
-////
-MongoDB with SUSE Rancher makes it possible to easily build, deploy, and manage resilient, scalable data services.
-
+FuseML enabled AI/ML teams to collaborate without having to compromise on the tools that work best for them, and for the stage of their project. FuseML is driven by "recipes" created by the opensource community that adapt the outputs and inputs of the most popular AI/ML tools and frameworks in use today. This allows teams to use existing recipes for quicker productivity, as well as create and contribute recipes as new tools and combinations of tools become available.
 
 == Additional resources
 
@@ -361,7 +356,7 @@ For more information, visit:
 
 *	https://rancher.com/docs/rancher/v2.x/en/best-practices/[Rancher best practices guide]
 *	https://rancher.com/docs/rancher/v2.x/en/troubleshooting/[Rancher troubleshooting tips]
-*	https://github.com/mongodb/mongodb-kubernetes-operator[MongoDB best practices]
+*	https://fuseml.github.io/
 
 ++++
 <?pdfpagebreak?>
@@ -383,5 +378,3 @@ include::common_sbp_legal_notice.adoc[]
 include::common_gfdl1.2_i.adoc[]
 
 //end
-
-////
