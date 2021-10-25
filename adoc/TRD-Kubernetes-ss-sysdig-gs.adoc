@@ -1,13 +1,13 @@
 :docinfo:
 
 // = {title}
-= MongoDB with SUSE Rancher - Getting Started
+= Sysdig SUSE Rancher - Getting Started
 
-// SUSE Rancher - MongoDB
+// SUSE Rancher - Sysdig
 // :author: Samip Parikh
 :revnumber: 0.0.1
 :toc2:
-:toc-title: MongoDB with SUSE Rancher - Getting Started
+:toc-title: Sysdig with SUSE Rancher - Getting Started
 
 :toclevels: 4
 
