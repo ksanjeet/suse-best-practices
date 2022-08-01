@@ -10,7 +10,7 @@ function init()
 function build()
 {
     touch build/"$pdf"
-    daps2docker.sh "$dir/$dc" "$fmt"
+    daps2docker "$dir/$dc" "$fmt"
 }
 
 function fetch()
