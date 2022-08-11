@@ -2547,27 +2547,25 @@ output the status once instead of periodically.
 
 [subs="specialchars,attributes"]
 ----
-Stack: corosync
-Current DC: {hanamm} (version 1.1.16-4.8-77ea74d) - partition with quorum
-Last updated: Mon July 25 16:55:04 2025
-Last change: Mon July 25 16:53:58 2025 by root via crm_attribute on {hanaso2}
+Cluster Summary:
+  * Stack: corosync
+  * Current DC: hanaso1 (version 2.0.5+20201202.ba59be712-150300.4.21.1-2.0.5+20201202.ba59be712) - partition with quorum
+  * Last updated: Sat Aug  6 00:12:46 2022
+  * Last change:  Sat Aug  6 00:11:40 2022 by root via crm_attribute on hanaso0
+  * 5 nodes configured
+  * 12 resource instances configured
 
-7 nodes configured
-16 resources configured
+Node List:
+  * Online: [ hanamm hanaso0 hanaso1 hanaso2 hanaso3 ]
 
-Online: [ {hanamm} {hanaso0} {hanaso1} {hanaso2} {hanaso3} ]
-
-Full list of resources:
-
-stonith-sbd     (stonith:external/sbd): Started {hanamm}
-rsc_ip_{SID}_HDB{Inst}        (ocf::heartbeat:IPaddr2):       Started {hanaso0}
- Master/Slave Set: msl_SAPHanaCon_{SID}_HDB{Inst} [rsc_SAPHanaCon_{SID}_HDB{Inst}]
-     Masters: [ {hanaso0} ]
-     Slaves: [ {hanaso1} {hanaso2} {hanaso3} ]
-     Stopped: [ {hanamm} ]
- Clone Set: cln_SAPHanaTop_{SID}_HDB{Inst} [rsc_SAPHanaTop_{SID}_HDB{Inst}]
-     Started: [ {hanaso0} {hanaso1} {hanaso2} {hanaso3} ]
-     Stopped: [ {hanamm} ]
+Active Resources:
+  * stonith-sbd (stonith:external/sbd):  Started hanamm
+  * Clone Set: cln_SAPHanaTop_TST_HDB00 [rsc_SAPHanaTop_TST_HDB00]:
+    * Started: [ hanaso0 hanaso1 hanaso2 hanaso3 ]
+  * Clone Set: msl_SAPHanaCon_TST_HDB00 [rsc_SAPHanaCon_TST_HDB00] (promotable):
+    * Masters: [ hanaso0 ]
+    * Slaves: [ hanaso1 hanaso2 hanaso3 ]
+  * rsc_ip_TST_HDB00    (ocf::heartbeat:IPaddr2):        Started hanaso0
 ----
 
 See manual page crm_mon(8) for details.
@@ -2656,7 +2654,7 @@ The landscape host configuration is shown with a line per {saphana} host.
 |        | Active | ... Config Role | Actual Role | Config Role | Actual Role |
 | ------ | ------ | ... ----------- | ----------- | ----------- | ----------- |
 | {mySite1FirstNode} | yes    | ... master 1    | master      | worker      | master      |
-| hanaso1 | yes    | ... master 2    | slave       | worker      | slave       |
+| hanaso1 | yes    | ... slave    | slave       | worker      | slave       |
 
 overall host status: ok
 ----
