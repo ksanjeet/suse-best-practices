@@ -82,7 +82,7 @@
             provides detailed information about how to install and customize
             SUSE Linux Enterprise Server for SAP Applications for SAP
             HANA Scale-Out system replication automation in the performance
-            optimized scenario. It is based on SUSE Linux Enterprise Server for
+            optimized scenario and add a third site in a multi-target architecture. It is based on SUSE Linux Enterprise Server for
             SAP Applications 15 SP3. The concept however can also be used with
             SUSE Linux Enterprise Server for SAP Applications 15 SP1 or 
             newer.</para>

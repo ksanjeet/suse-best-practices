@@ -108,7 +108,7 @@ We will first setup a {sles4sap} cluster controlling
 two 'pairs' of {saphana} scale-out in a system replication configuration. We will next setup a third site which is outside SUSE HA cluster but acts as additional {saphana} target forming a multi target architecture.
 
 .Cluster with {SAPHana} Multi-Target SR - performance optimized
-image::SAPHanaSR-ScaleOut-MultiTarget-Arch1.svg[scaledwidth="100%"]
+image::SAPHanaSR-ScaleOut-MultiTarget-HA.svg[scaledwidth="100%"]
 
 With SAPHanaSR-ScaleOut, various HANA scale-out configurations are supported.
 Details on requirements and supported scenarios are given below.
@@ -160,7 +160,7 @@ configuration and file systems.
 NOTE: Although, it is possible to have standby nodes in scale-out multi-target setup, however this guide is created with a focus of ERP style setup and involves no standby nodes. All 3 sites have 2 nodes each.
 
 .Simplified NFS share structure of a (2+0 \<= 2+0 \-> 2+0) {saphana} multi-target system replication
-image::SAPHanaSR-ScaleOut-NFSPool-2+1.svg[scaledwidth="100%"]
+image::SAPHanaSR-ScaleOut-MultiTarget-Arch1.svg[scaledwidth="100%"]
 
 Requirements with 2 {SAPHANA} instances per site (2+0 <= 2+0 -> 2+0) - with a
 majority maker:
@@ -183,8 +183,8 @@ majority maker:
 
 The SBD based fencing needs up to 3 shared block devices.
 
-.Additionally to the NFS shares: All cluster nodes need to have access to the SBD block devices
-image::SAPHanaSR-ScaleOut-SBDs-3+2.svg[scaledwidth="100%"]
+//.Additionally to the NFS shares: All cluster nodes need to have access to the SBD block devices
+//image::SAPHanaSR-ScaleOut-SBDs-3+2.svg[scaledwidth="100%"]
 
 === Parameter sheet
 
@@ -245,7 +245,7 @@ The master assumes responsibility for the active master name server of the
 represented by the slave mode.
 
 .Cluster resource agents and multi-state status mapping
-image::SAPHanaSR-ScaleOut-Cluster-Resources02.svg[scaledwidth="100%"]
+image::SAPHanaSR-ScaleOut-MultiTarget-HARA.svg[scaledwidth="100%"]
 
 The second resource agent is *SAPHanaTopology*. This RA has been created to make configuring the cluster as simple as possible.
 It runs on all nodes (except the majority maker)
