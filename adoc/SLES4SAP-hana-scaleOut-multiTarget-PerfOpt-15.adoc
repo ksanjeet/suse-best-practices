@@ -2397,10 +2397,8 @@ The tests described in this section are checking the reaction on several failure
 The tests listed here check the {saphana} and cluster reaction if one or more nodes of the primary site are failing or
 re-joining the cluster.
 
-* Power-off master name server of the primary. The test assumes that there is still an {saphana} standby instance.
-* Power-off master name server of the primary after all standby instances are already in use.
-* Power-off any worker node but not the master name server of the primary. The test assumes that there is still an {saphana} standby instance.
-* Power-off any worker node but not the master name server of the primary after all standby instances are already in use.
+* Power-off master name server of the primary. 
+* Power-off the worker node but not the master name server of the primary. 
 * Power-off any standby node of the primary.
 * Re-join of a previously power-off cluster node.
 
@@ -2414,11 +2412,8 @@ This test category is simulating a complete site failure.
 
 The tests listed here are checks about the {saphana} and cluster reactions triggered by application failures such as a crashed {saphana} instance.
 
-* Kill the {saphana} instance of the master name server of the primary. The test assumes that there is still an {saphana} standby instance.
-* Kill the {saphana} instance of the master name server of the primary after all standby instances are already in use.
-* Kill the {saphana} instance of any worker node but not the master name server of the primary. The test assumes that there is still an {saphana} standby instance.
-* Kill the {saphana} instance of any worker node but not the master name server of the primary after all standby instances are already in use.
-* Kill the {saphana} instance of any standby node.
+* Kill the {saphana} instance of the master name server of the primary. 
+* Kill the {saphana} instance of the worker node but not the master name server of the primary. 
 * Kill sapstartsrv of any {saphana} instance of the primary.
 
 === Tests on the secondary site
@@ -2430,11 +2425,8 @@ The tests described in this section are checking the reaction on several failure
 The tests listed here check the {saphana} and cluster reaction if one or more nodes of the secondary site are failing or
 re-joining the cluster.
 
-* Power-off master name server of the secondary. The test assumes that there is still an {saphana} standby instance.
-* Power-off master name server of the secondary after all standby instances are already in use.
-* Power-off any worker node but not the master name server of the secondary. The test assumes that there is still an {saphana} standby instance.
-* Power-off any worker node but not the master name server of the secondary after all standby instances are already in use.
-* Power-off any standby node of the secondary.
+* Power-off master name server of the secondary. 
+* Power-off the worker node but not the master name server of the secondary. 
 * Re-join of a previously power-off cluster node.
 
 ==== Tests regarding the complete secondary site
@@ -2447,11 +2439,8 @@ This test category is simulating a complete site failure.
 
 The tests listed here are checks about the {saphana} and cluster reactions triggered by application failures such as a crashed {saphana} instance.
 
-* Kill the {saphana} instance of the master name server of the secondary. The test assumes that there is still an {saphana} standby instance.
-* Kill the {saphana} instance of the master name server of the secondary after all standby instances are already in use.
-* Kill the {saphana} instance of any worker node but not the master name server of the secondary. The test assumes that there is still an {saphana} standby instance.
-* Kill the {saphana} instance of any worker node but not the master name server of the secondary after all standby instances are already in use.
-* Kill the {saphana} instance of any standby node.
+* Kill the {saphana} instance of the master name server of the secondary. 
+* Kill the {saphana} instance of the worker node but not the master name server of the secondary. The test assumes that there is still an {saphana} standby instance.
 * Kill _sapstartsrv_ of any {saphana} instance of the secondary.
 
 
