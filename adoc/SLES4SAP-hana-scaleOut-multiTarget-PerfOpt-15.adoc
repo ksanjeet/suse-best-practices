@@ -108,7 +108,7 @@ We will first setup a {sles4sap} cluster controlling
 two 'pairs' of {saphana} scale-out in a system replication configuration. We will next setup a third site which is outside SUSE HA cluster but acts as additional {saphana} target forming a multi target architecture.
 
 .Cluster with {SAPHana} Multi-Target SR - performance optimized
-image::SAPHanaSR-ScaleOut-MultiTarget-HA.svg[scaledwidth="100%"]
+image::Multi-Target.svg[scaledwidth="100%"]
 
 With SAPHanaSR-ScaleOut, various HANA scale-out configurations are supported.
 Details on requirements and supported scenarios are given below.
@@ -160,7 +160,7 @@ configuration and file systems.
 NOTE: Although, it is possible to have standby nodes in scale-out multi-target setup, however this guide is created with a focus of ERP style setup and involves no standby nodes. All 3 sites have 2 nodes each.
 
 .Simplified NFS share structure of a (2+0 \<= 2+0 \-> 2+0) {saphana} multi-target system replication
-image::SAPHanaSR-ScaleOut-MultiTarget-Arch1.svg[scaledwidth="100%"]
+image::SAPHanaSR-ScaleOut-MultiTarget-1.svg[scaledwidth="100%"]
 
 Requirements with 2 {SAPHANA} instances per site (2+0 <= 2+0 -> 2+0) - with a
 majority maker:
@@ -245,7 +245,7 @@ The master assumes responsibility for the active master name server of the
 represented by the slave mode.
 
 .Cluster resource agents and multi-state status mapping
-image::SAPHanaSR-ScaleOut-MultiTarget-HARA.svg[scaledwidth="100%"]
+image::SAPHanaSR-ScaleOut-Cluster-Resources-1.svg[scaledwidth="100%"]
 
 The second resource agent is *SAPHanaTopology*. This RA has been created to make configuring the cluster as simple as possible.
 It runs on all nodes (except the majority maker)
@@ -2369,16 +2369,13 @@ nodes are booted, are already normal members of the cluster and the {saphana} RD
 is running. The system replication is in state *SYNC* represented by 'SOK'.
 The cluster is idle, no actions are pending, no migration constraints left over, no fail-counts left over.
 
-In the current version of this setup guide a plain list of test cases is provided. A more detailed description of the
-test cases is planned for future versions. These details will be provided either in an updated version of this guide
-or the test cases will be extracted to a separate test plan document.
 
 === Generic cluster tests
 
 The cluster tests described in this section cover the cluster reaction during operations. This includes starting and stopping
 the complete cluster or simulating SBD failures and much more.
 
-* Parallel start of all cluster nodes (`systemctl start pacemaker` should be done in a short time frame).
+* Parallel start of all cluster nodes (`crm cluster start` should be done in a short time frame).
 * Stop of the complete cluster.
 * Isolate ONE of the two {saphana} sites.
 * Power-off the majority maker.
@@ -2397,10 +2394,17 @@ The tests described in this section are checking the reaction on several failure
 The tests listed here check the {saphana} and cluster reaction if one or more nodes of the primary site are failing or
 re-joining the cluster.
 
-* Power-off master name server of the primary. 
+* Power-off master name server of the primary.
+
+Expected Observation: The master candidate node the secondary site is promoted as the new master. System Replication gets broken between the primary and secondary site. The source of system replication to the DR site changes to the new master.
+ 
 * Power-off the worker node but not the master name server of the primary. 
-* Power-off any standby node of the primary.
+
+Expected Observation: Cluster notices that the worker node at primary site is down. No impact on the system replication.
+
 * Re-join of a previously power-off cluster node.
+
+Expected Observation: Cluster notices re-join of previously power-off node. If it was a worker node then there is no impact on the system replication. In case it was previously a master node then depending on the configuration it may automatically join as secondary or wait for a manual registration by admin.
 
 ==== Tests regarding the complete primary site
 
@@ -2408,13 +2412,23 @@ This test category is simulating a complete site failure.
 
 * Power-off all nodes of the primary site in parallel.
 
+Expected Observation: The master candidate on the secondary site is promoted as new master. System replication gets broken between pimary and secondary site. The source of system replication to the DR site changes to the new master.
+
 ==== Tests regarding the {saphana} instances of the primary site
 
 The tests listed here are checks about the {saphana} and cluster reactions triggered by application failures such as a crashed {saphana} instance.
 
 * Kill the {saphana} instance of the master name server of the primary. 
+
+Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site.
+
 * Kill the {saphana} instance of the worker node but not the master name server of the primary. 
+
+Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site.
+
 * Kill sapstartsrv of any {saphana} instance of the primary.
+
+Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site.
 
 === Tests on the secondary site
 
@@ -2426,8 +2440,16 @@ The tests listed here check the {saphana} and cluster reaction if one or more no
 re-joining the cluster.
 
 * Power-off master name server of the secondary. 
+
+Expected Observation: Cluster notices the power down of the master candidate on secondary. System replication gets broken between primary and secondary.
+
 * Power-off the worker node but not the master name server of the secondary. 
+
+Expected Observation: Cluster notices the power down of the worker node on secondary site. No impact on the system replication.
+
 * Re-join of a previously power-off cluster node.
+
+Expected Observation: Cluster notices re-join of previously power-off node. If it was a worker node then there is no impact on the system replication. In case it was previously a master nameserver node then depending on the configuration it may automatically join as secondary or wait for a manual registration by admin.
 
 ==== Tests regarding the complete secondary site
 
@@ -2435,13 +2457,23 @@ This test category is simulating a complete site failure.
 
 * Power-off all nodes of the secondary site in parallel.
 
+Expected Observation: Cluster notices the nodes that are down. System replication gets broken.
+
 ==== Tests regarding the {saphana} instances of the secondary site
 
 The tests listed here are checks about the {saphana} and cluster reactions triggered by application failures such as a crashed {saphana} instance.
 
 * Kill the {saphana} instance of the master name server of the secondary. 
-* Kill the {saphana} instance of the worker node but not the master name server of the secondary. The test assumes that there is still an {saphana} standby instance.
+
+Expected Observation: Monitor operation on HANA resource on the master candidate at secondary gets failed. Cluster then restarts the HANA resource on the affected nodes.
+
+* Kill the {saphana} instance of the worker node but not the master name server of the secondary. 
+
+Expected Observation: Monitor operation on HANA resource on the master candidate at secondary gets failed. Cluster then restarts the HANA resource on the affected nodes.
+
 * Kill _sapstartsrv_ of any {saphana} instance of the secondary.
+
+Expected Observation: Monitor operation on HANA resource on the master candidate at secondary gets failed. Cluster then restarts the HANA resource on the affected nodes.
 
 
 == Administration
