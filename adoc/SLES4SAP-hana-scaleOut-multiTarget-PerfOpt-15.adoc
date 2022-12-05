@@ -8,7 +8,7 @@ include::Var_SLES4SAP-hana-scaleOut-multiTarget-PerfOpt-15-param.txt[]
 
 = {SAPHana} System Replication Scale-Out Multi-Target - Performance Optimized Scenario
 // Fabian Herschel, Lars Pinne, Sanjeet Kumar Jha
-// 2022-06-10
+// 2022-12-05
 
 :Revision: 0.1
 // TODO PRIO3: revision here, or at very bottom? see very bottom...
@@ -52,30 +52,32 @@ From the application perspective the following variants are covered:
 - Multi-tier (chained) system replication
 - Multi-target system replication
 - Multi-tenant database containers for all above
-- HANA host auto-failover for all above
-- HANA databases without host auto-failover are possible, but not explained
-  in this guide
-// TODO PRIO3: - System replication with secondary site read-enabled
+- Active/active read enabled for all of the above
+- HANA host auto-failover is not used, there is only one master name server configured and no candidates
+- HANA host auto-failover is restricted and not explained in this guide
+// DONE PRIO3: - System replication with secondary site read-enabled
 
 From the infrastructure perspective the following variants are covered:
 
-- 3-site cluster with disk-based SBD fencing and a 4th non-cluster site
-
+- 3-site cluster with disk-based SBD fencing and a 4th non-cluster site ( [ A => B ] -> C )
+- 3-site cluster with disk-based SBD fencing, a 4th non-cluster site with a 5th non-cluster site invisible to the cluster is possible, but not explained in this guide ( [ A => B ] -> C -> D )
+- 1-site cluster with disk-based SBD fencing and a 2nd non-cluster site is possible, but not explained in this guide
 
 === Additional documentation and resources
 
 Chapters in this manual contain links to additional documentation resources that
 are either available on the system or on the Internet.
 
-For the latest SUSE product documentation updates, see https://documentation.suse.com.
+For the latest SUSE product documentation updates, see https://documentation.suse.com .
 
 Find white-papers, best-practices guides, and other resources at the
 
 // TODO PRIO3: check links
 - {sles4sap} resource library:
+// TODO PRIO2: sles-for-sap product docu
 {reslibrary}
 - SUSE Best Practices Web page:
-https://documentation.suse.com/sbp/sap/
+{reslibrary}
 
 // Standard SUSE includes
 === Feedback
@@ -86,7 +88,7 @@ include::common_intro_feedback.adoc[]
 //include::common_intro_typografie.adoc[]
 
 == Scope of this documentation
-This document describes how to set up {saphana} scale-out multi-target system replication with a cluster installed on two sites(and a third site which acts as majority maker) based on {sles4sap} {pn15} {psp15} and how to add an additional non cluster site for a multi target architecture.
+This document describes how to set up {saphana} scale-out multi-target system replication with a cluster installed on two sites(and a third site which acts as majority maker) based on {sles4sap} {pn15} {psp15} and how to add an additional non cluster site for a multi-target architecture.
 This concept can also be used with {sles4sap} {pn15} SP1 or newer.
 
 To give a better overview the installation and setup is subdivided into
@@ -101,16 +103,16 @@ image::SAPHanaSR-ScaleOut-MultiTarget-Plan-Phase0.svg[scaledwidth="100%"]
 - {saphana} system replication configuration (section <<SAPHanaHsr>>)
 - {saphana} cluster integration (section <<Integration>>)
 - {sles4sapAbbr} cluster configuration (section <<Cluster>>)
-- Setup of third {saphana} site in a multi target architecture (section <<MultiTarget>>)
+- Setup of third {saphana} site in a multi-target architecture (section <<MultiTarget>>)
 - Testing (section <<Testing>>)
 
-We will first setup a {sles4sap} cluster controlling
-two 'pairs' of {saphana} scale-out in a system replication configuration. We will next setup a third site which is outside SUSE HA cluster but acts as additional {saphana} target forming a multi target architecture.
+We will first set up a {sles4sap} cluster controlling
+two sites of {saphana} scale-out in a system replication configuration. We will next set up a third site which is outside {sleha} cluster but acts as additional {saphana} target forming a multi-target architecture.
 
 .Cluster with {SAPHana} Multi-Target SR - performance optimized
 image::Multi-Target.svg[scaledwidth="100%"]
 
-With SAPHanaSR-ScaleOut, various HANA scale-out configurations are supported.
+With SAPHanaSR-ScaleOut, various {saphana} scale-out configurations are supported.
 Details on requirements and supported scenarios are given below.
 // TODO PRIO3: internal link to requirements section
 //In this guide, we describe two scenarios where {saphana} is configured for host
@@ -120,7 +122,10 @@ Details on requirements and supported scenarios are given below.
 //setup in a series of blog articles on {#towardsZeroDowntime}, for example 
 https://www.suse.com/c/sap-hana-scale-out-system-replication-for-large-erp-systems/ .
 
-In this guide we will cover scale-out scenario without standby nodes which means we will not cover the scenario where {saphana} is configured for host auto-failover.
+In this guide we will cover a scale-out scenario without standby nodes, thus there is no host auto-failover. More details are explained at
+https://www.suse.com/c/sap-hana-scale-out-system-replication-for-large-erp-systems/ .
+The scenario where {saphana} is configured for host auto-failover is explained at
+https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-scaleOut-PerfOpt-15/ .
 
 NOTE: For upgrading an existing {saphana} scale-out system replication cluster
 from SAPHanaSR-ScaleOut version 0.160, consult manual page
@@ -162,14 +167,15 @@ NOTE: Although, it is possible to have standby nodes in scale-out multi-target s
 .Simplified NFS share structure of a (2+0 \<= 2+0 \-> 2+0) {saphana} multi-target system replication
 image::SAPHanaSR-ScaleOut-MultiTarget-1.svg[scaledwidth="100%"]
 
-Requirements with 2 {SAPHANA} instances per site (2+0 <= 2+0 -> 2+0) - with a
+Requirements with 2 {saphana} instances per site (aka [ 2+0 <= 2+0 ] -> 2+0) - with a
 majority maker:
 
 - 6 VMs with each 32 GB RAM, 50 GB disk space
 - 1 VM with 2 GB RAM, 50 GB disk space
 - 1 shared disk for SBD with 10 MB disk space
-- 3 NFS pools (one per site) with a capacity of each 96 GB
+- 3 NFS pools (one per site) with a capacity of each 200 GB
 - 1 additional IP address for takeover
+-  optional: 2nd additional IP address for active/read-enabled setup
 
 
 // pools size is calculated like:
@@ -181,17 +187,17 @@ majority maker:
 //For the SBD based fencing the setup needs a pool (1 up to 3) of shared
 //disks to allow the transportation of the "poison pills".
 
-The SBD based fencing needs up to 3 shared block devices.
+The SBD based fencing needs up to 3 block devices, shared across the two cluster sites.
 
 //.Additionally to the NFS shares: All cluster nodes need to have access to the SBD block devices
 //image::SAPHanaSR-ScaleOut-SBDs-3+2.svg[scaledwidth="100%"]
 
 === Parameter sheet
 
-The multi target architecture with a cluster organizing two {saphana} 'pairs' and a third site is quite complex. The installation
+The multi-target architecture with a cluster organizing two {saphana} sites and a third site is quite complex. The installation
 should be planned properly. You should have all needed parameters like SID, IP
 addresses and much more already in place. It is a good practice to first fill out
-the parameter sheet and than begin with the installation.
+the parameter sheet and then begin with the installation.
 
 .Parameter sheet to prepare the NFS based setup
 [width="85%",options="header"]
@@ -199,16 +205,21 @@ the parameter sheet and than begin with the installation.
 ^|Parameter ^| Value
 |Path to {sles4sapAbbr} media |
 |RMT server or SCC account |
+|NTP server(s) |
 |Path to {saphana} media |
 |S-User for SAP marketplace |
-|Node names site 1  |
-|Node names site 2  |
-|Node names site 3  |
-|Node name majority maker  |
+|Node 1 name site 1 |
+|Node 2 name site 1 |
+|Node 1 name site 2 |
+|Node 2 name site 2 |
+|Node 1 name site 3 |
+|Node 2 name site 3 |
+|Node name majority maker (site 3 or 4) |
 |IP addresses of all cluster nodes |
 |SID |
 |Instance number |
 |Service IP address |
+|Service IP address active/read-enabled |
 |HANA site name site 1 |
 |HANA site name site 2 |
 |HANA site name site 3 |
@@ -230,7 +241,6 @@ the parameter sheet and than begin with the installation.
 
 // TODO PRIO3: Add sheet rows for 'HANA virtual host names' and 'HANA SAN parameter sheet'
 // TODO PRIO3: Should we write a SAP specific white paper in collaboration with a HW vendor?
-// DONE PRIO3: Should we write a SUSE storage specific white paper also? There is no longer SUSE storage...
 
 === Scale-out scenario and HA resource agents
 
@@ -253,7 +263,7 @@ of a {sle} High Availability Extension {pn15} cluster. It gathers information
 about the statuses and configurations of the {saphana} system replication. It is
 designed as a normal (stateless) clone resource.
 
-With the current version of resource agents, {SAPHANA} system replication for
+With the current version of resource agents, {saphana} system replication for
 scale-out is supported in the following scenarios or use cases:
 
 Performance optimized, single container (A \=> B)::
@@ -264,8 +274,7 @@ See also the requirements section below for details.
 
 Performance optimized, multi-tenancy also named MDC (%A \=> %B)::
 Multi-tenancy is available for all of the supported scenarios and use cases in
-this document. This scenario is supported since {SAPHANA} 1 SPS12, it is the
-default installation type for {SAPHANA} 2.0.
+this document. This scenario is the default installation type for {saphana} 2.0.
 The setup and configuration from a cluster point of view is the same for
 multi-tenancy and single containers. The one caveat is, that the tenants are
 managed all together by the Linux cluster. See also the requirements section
@@ -281,7 +290,7 @@ See also the requirements section below.
 Multi-Target Replication (A \<= B \-> C)::
 This scenario and setup is described in this document. A Multi-Target system replication has an additional target, which is connected to
 either the secondary (chain topology) or to the primary (star topology).
-Multi-Target replication is possible since {SAPHANA} 2.0 SPS04.
+Multi-Target replication is possible since {saphana} 2.0 SPS04.
 See also the requirements section below.
 
 
@@ -295,18 +304,13 @@ secondary site. Typically the takeover is much faster than the local restart.
 
 A site is noticed as "down" or "on error", if the *LandscapeHostConfiguration
 status* reflects this (return code 1). This happens when worker nodes are going
-down without any {SAPHANA} standby nodes left. Standby nodes are designed to
-perform a host auto-failover for the worker functionality.
+down without any {saphana} standby nodes left.
+ERP-style {saphana} scale-out database will have no standby nodes by design.
 Find more details on concept and implementation in manual page
 SAPHanaSR-ScaleOut(7).
 
-Without any additional intervention the resource agent will wait for the {sap}
-internal HA cluster to repair the situation locally. An additional intervention
-could be a custom python hook using the SAP provider *srServiceStateChanged()*
-available since {SAPHANA} 2.0 SPS01.
-
 To achieve an automation of this resource handling process, use the
-{SAPHANA} resource agents included in the _SAPHanaSR-ScaleOut_ RPM package
+{saphana} resource agents included in the _SAPHanaSR-ScaleOut_ RPM package
 delivered with {sles4sap}.
 
 You can configure the level of automation by setting the parameter
@@ -314,7 +318,16 @@ _AUTOMATED_REGISTER_. If automated registration is activated the cluster will
 also automatically register a former failed primary to get the new secondary.
 Find configuration details in manual page ocf_suse_SAPHanaController(7).
 
-Site 3 is connected as an additional system replication target to the {SAPHANA} node running master nameserver. In case of a takeover, HANA can be configured in such a way that site 3 will automatically reregister itself to the correct site for system replication.
+The resource agent for HANA in a Linux cluster does not trigger a takeover to
+the secondary site when a software failure causes one or more HANA processes
+to be restarted, or an hardware error causes the indexserver to restart locally.
+Therefor the SAPHanaSR-ScaleOut package contains the HA/DR provider hook script
+susChkSrv.py. For details see manual page susChkSrv.py(7).
+
+Site 3 is connected as an additional system replication target to either {saphana}
+site inside the cluster. That two HANA sites need to be configured for automatically
+re-registering the 3rd site in case of takeover.
+
 
 === Important prerequisites
 
@@ -326,10 +339,10 @@ following configurations and parameters:
 // TODO PRIO2: align prerequisites section with scale-up guide and man pages
 
 * The cluster must include a valid STONITH method.
-  SBD disk-based or diskless is recommended STONITH method.
-* Both sites are either in the same network segment (layer 2) to allow an easy
-  takeover of an IP Address, or you need a technique like overlay IP addresses
-  in virtual private clouds.
+  SBD disk-based is the recommended STONITH method.
+* Both cluster controlled {saphana} sites are either in the same network segment
+  (layer 2) to allow an easy takeover of an IP Address, or you need a technique
+  like overlay IP addresses in virtual private clouds.
 * Technical users and groups, such as _{refsidadm}_ are defined *locally* in the
   Linux system.
 * Name resolution of the cluster nodes and the virtual IP address should be done
@@ -338,17 +351,16 @@ following configurations and parameters:
 * Time synchronization between the cluster nodes using reliable time services
   like NTP.
 * All {saphana} sites have the same SAP Identifier (SID) and instance number.
-* The {SAPHANA} scale-out system must have only *one* active master name server
-  per site. It should have up to three master name server candidates ({SAPHANA}
-  nodes with a configured role 'master<N>').
-* For {SAPHANA} databases without additional master name server candidate,
+* The {saphana} scale-out system must have only *one* active master name server
+  per site. There are no configured master name server.
+* For {saphana} databases without additional master name server candidate,
   the package SAPHanaSR-ScaleOut version 0.180 or newer is needed.
-* The {SAPHANA} scale-out system must have only *one* failover group.
+* The {saphana} scale-out system must have only *one* failover group.
 * There is maximum one additional {saphana} system replication connected from
   outside the Linux cluster. Thus two sites are managed by the Linux cluster,
-  one site outside is recognized. For {SAPHANA} multi-tier and multi-target
+  one site outside is recognized. For {saphana} multi-tier and multi-target
   system replication, the package SAPHanaSR-ScaleOut version 0.180 or newer is needed.
-* Only one {SAPHANA} SID is installed. Thus the performance optimized setup is
+* Only one {saphana} SID is installed. Thus the performance optimized setup is
   supported. The cost optimized and MCOS scenarios are currently not supported.
 * The _{sapHostAgent}_ must be running. _{sapHostAgent}_ is needed to translate
   between the system node names and SAP host names used during the installation
@@ -363,37 +375,49 @@ following configurations and parameters:
 // use the same style.
 * All {saphana} instances controlled by the cluster must not be activated via
   _sapinit_ auto-start.
-* The replication mode should be either 'sync' or 'syncmem'. 'async' is not
-  supported.
-* The Linux cluster can be either freshly installed as described in this guide,
-  or it can be upgraded as described in respective documentation.
-  Not allowed is mixing old and new cluster attributes or hook scripts within
-  one Linux cluster.
-
-Find more details in the REQUIREMENTS section of manual pages
-SAPHanaSR-ScaleOut(7), ocf_suse_SAPHanaController(7),
-SAPHanaSrMultiTarget.py(7) and SAPHanaSR-manageAttr(8).
+* Automated start of {saphana} instances during system boot must be switched
+  *off*.
+* The replication mode should be either 'sync' or 'syncmem'. 'async' is
+  supported outside the Linux cluster.
+* SAP HANA 2.0 SPS04 or later provides the HA/DR provider hook method srConnectionChanged()
+  with needed parameters for SAPHanaSrMultiTarget.py.
+* SAP HANA 2.0 SPS05 or later provides the HA/DR provider hook method srServiceStateChanged()
+  with needed parameters for susChkSrv.py.
+* No other HA/DR provider hook script should be configured for the above mentioned methods.
+  Hook scripts for other methods, provided in SAPHanaSR-ScaleOut, can  be used in parallel,
+  if not documented contradictingly.
+* The Linux cluster needs to be up and running to allow HA/DR provider events being written
+  into CIB attributes. The current HANA SR status might differ from CIB srHook attribute
+  after Linux cluster maintenance.
+* For optimal automation, _AUTOMATED_REGISTER="true"_ is recommended.
 
 [IMPORTANT]
 ====
-Automated registration of a failed primary after takeover is possible. But as a
-good starting configuration for projects, it is recommended to *switch off* the
-automated registration of a failed primary, therefore the
+As good starting configuration for projects, it is recommended to *switch off*
+the automated registration of a failed primary, therefor
 `AUTOMATED_REGISTER="false"` is the *default*.
 
 In this case, you need to register a failed primary after a takeover manually.
-Use SAP tools like {SAPHANA} Cockpit or *hdbnsutil*.
-// DONE PRIO3: Should we add also hana cockpit here?
+Use SAP tools like {saphana} Cockpit or *hdbnsutil*. Please make sure to use
+always the exact site names as already known to the cluster.
 
-Site 3 can be configured to follow the primary {SAPHANA} after takeover. For this a configuration 'register_secondaries_on_takeover=true' needs to be added in the system_replication block of the global.ini file.
+The two {saphana} sites inside the Linux cluster can be configured to re-register
+the outer {saphana} in case of takeover. For this a configuration item 
+ 'register_secondaries_on_takeover=true' needs to be added in the
+system_replication block of the global.ini file.
+See also manual page SAPHanaSrMultiTarget.py(7).  
 
 ====
 
-* For optimal automation, _AUTOMATED_REGISTER="true"_ is recommended.
-* Automated start of {SAPHANA} instances during system boot must be switched
-  *off*.
-* You need at least SAPHanaSR-ScaleOut version 0.180, {sles4sap} {pn15} SP1 and
-  {SAPHANA} 2.0 SPS 4 for all mentioned setups.
+* You need at least SAPHanaSR-ScaleOut version 0.184, {sles4sap} {pn15} SP1 and
+  {saphana} 2.0 SPS 05 for all mentioned setups.
+* The Linux cluster can be either freshly installed as described in this guide,
+  or it can be upgraded as described in respective documentation.
+  Not allowed is mixing old and new cluster attributes or hook scripts within
+
+Find more details in the REQUIREMENTS section of manual pages
+SAPHanaSR-ScaleOut(7), ocf_suse_SAPHanaController(7),
+SAPHanaSrMultiTarget.py(7), SAPHanaSR-manageAttr(8) and susChkSrv.py(7).
 
 IMPORTANT: You must implement a valid STONITH method. Without a valid STONITH
 method, the complete cluster is unsupported and will not work properly.
@@ -407,7 +431,7 @@ configuration instructions.
 This setup guide focuses on the scale-out multi-target setup.
 
 If you need to implement a different scenario, it is strongly recommended to
-define a Proof-of-Concept (PoC) with {SUSE}. This PoC will focus on testing
+define a Proof-of-Concept (PoC) with {suse}. This PoC will focus on testing
 the existing solution in your scenario. The limitation of most of the above
 items is mostly due to testing limits.
 
@@ -459,7 +483,7 @@ _majority maker_.
 * install package: {sapHanaSR}-ScaleOut, {sapHanaSR}-ScaleOut-doc, ClusterTools2, saptune
 * install pattern: ha_sles
 
-To do so, for example, use Zypper:
+To do so, for example, use zypper:
 
 // SUSE is kept literal here, because it is a quote from a command output
 .Uninstall the {sapHanaSR} agent for ScaleUP
@@ -536,10 +560,12 @@ Install the tools for High Availability on all nodes.
 
 ==== Getting the latest updates
 
-If you have installed the packages before, make sure to deploy the newest updates on *all* machines
-to have the latest versions of the resource agents and other packages. A prerequisite is a valid
-subscription for {sles4sap}. There are multiple ways to get updates via {SUSE} Manager, the
-Repository Management Tool (RMT), or via a direct connection to the {SUSE} Customer Center (SCC).
+If you have installed the packages before, make sure to deploy the newest updates
+on all machines to have the latest versions of the resource agents and other packages.
+Please also make sure all systems have indentical package versions.
+A prerequisite is a valid
+subscription for {sles4sap}. There are multiple ways to get updates via {suse} Manager, the
+Repository Management Tool (RMT), or via a direct connection to the {suse} Customer Center (SCC).
 
 Depending on your company or customer rules, use `zypper update` or `zypper patch`.
 
@@ -713,16 +739,16 @@ Create other directories (optional).
 File systems
 
 /hana/shared/{refSID}::
-The mount directory is used for shared files between all hosts in an {SAPHANA}
+The mount directory is used for shared files between all hosts in an {saphana}
 system. This directory needs to be accessible to each of the servers in the
-{SAPHANA} cluster.
+{saphana} cluster.
 
 /hana/log/{refSID}::
-The default path to the log directory depends on the system ID of the {SAPHANA}
+The default path to the log directory depends on the system ID of the {saphana}
 host.
 
 /hana/data/{refSID}::
-The default path to the data directory depends on the system ID of the {SAPHANA}
+The default path to the data directory depends on the system ID of the {saphana}
 host.
 
 /usr/sap::
@@ -731,7 +757,7 @@ to join this location with the Linux installation.
 
 /sapsoftware:: (optional)
 Space for copying the SAP install software media. This NFS pool is mounted on both sites and contains
-the {sapHana} installation media and installation parameter files.
+the {saphana} installation media and installation parameter files.
 
 Set up host name resolution for all machines.
 
@@ -742,7 +768,7 @@ DNS service. Replace the IP address and the host name in the following commands.
 
 [subs="quotes,attributes"]
 ----
-vi /etc/hosts
+# vi /etc/hosts
 ----
 
 Insert the following lines to `/etc/hosts`. Change the IP address and host name
@@ -804,9 +830,9 @@ The {saphana} database superuser.
 
 - Read the SAP Installation and Setup Manuals available at the SAP Marketplace.
 
-- Download the {SAPHANA} Software from SAP Marketplace.
+- Download the {saphana} Software from SAP Marketplace.
 
-- Mount the file systems to install {SAPHANA} database software and database
+- Mount the file systems to install {saphana} database software and database
   content (data and log).
 
 - Start the installtion.
@@ -822,7 +848,7 @@ The {saphana} database superuser.
 done
 ----
 +
-. Install the {saphana} Database as described in the {SAPHANA} Server
+. Install the {saphana} Database as described in the {saphana} Server
 Installation Guide on *all* machines (three sites) except the majority maker.
 All three databases need to have same SID and instance number.
 You can use either the graphical user interface or the command line
@@ -1106,7 +1132,7 @@ hostname, instanceNr, httpPort, httpsPort, startPriority, features, dispstatus
 =========
 
 
-== Setting up {SAPHANA} system replication
+== Setting up {saphana} system replication
 
 .<<Planning>> <<OsSetup>> <<SAPHanaInst>> SAPHanaHsr <<Integration>> <<Cluster>> <<MultiTarget>> <<Testing>>
 image::SAPHanaSR-ScaleOut-MultiTarget-Plan-Phase4.svg[scaledwidth="100%"]
@@ -1186,7 +1212,7 @@ Enter the following command as user {refsidadm}:
 
 ////
 If you have (for example) created a backup database user and a user key
-_hanabackup_, you can create an initial backup of an MDC {SAPHANA} using the
+_hanabackup_, you can create an initial backup of an MDC {saphana} using the
 following command:
 
 ----
@@ -1195,7 +1221,7 @@ following command:
 ----
 ////
 
-IMPORTANT: Without a valid backup, you *cannot* bring {SAPHANA} into a system
+IMPORTANT: Without a valid backup, you *cannot* bring {saphana} into a system
 replication configuration.
 
 // TODO PRIO3: (BS) Add section about separate SR network. Only a hint not a
@@ -1203,7 +1229,7 @@ replication configuration.
 
 === Enabling the primary database
 As Linux user _{refsidadm}_ enable the system replication at the primary node. You
-need to define a site name (like _{mySite1Name}_) which must be unique for all {SAPHANA}
+need to define a site name (like _{mySite1Name}_) which must be unique for all {saphana}
 databases which are connected via system replication. This means the secondary
 must have a different site name.
 
@@ -1411,19 +1437,19 @@ image::SAPHanaSR-ScaleOut-MultiTarget-Plan-Phase5.svg[scaledwidth="100%"]
 
 // TODO PRIO3: explain new default SAPHanaSrMultiTarget.py, even for non-multi-target
 
-This step must be done on the two sites that will be part of the cluster. {SAPHANA} must be stopped to change the
-_global.ini_ and allow {SAPHANA} to integrate the HA/DR hook script during start.
+This step must be done on the two sites that will be part of the cluster. {saphana} must be stopped to change the
+_global.ini_ and allow {saphana} to integrate the HA/DR hook script during start.
 
 // TODO - Install the HA/DR hook script into a read/writable directory
 - Integrate the hook into _global.ini_ ({saphana} needs to be stopped for doing that offline)
-- Check integration of the hook during {SAPHANA} start-up
+- Check integration of the hook during {saphana} start-up
 
 The ready-to-use HA/DR hook script is shipped with the SAPHanaSR-ScaleOut package in
 directory /usr/share/SAPHanaSR-ScaleOut/.
 The hook script must be available on all cluster nodes, including the majority
 maker. Find more details in manual page SAPHanaSrMultiTarget.py(7).
 
-Stop {SAPHANA}.
+Stop {saphana}.
 
 [subs="specialchars,attributes"]
 ----
@@ -1475,7 +1501,7 @@ Path for the _global.ini_: /hana/shared/<SID>/global/hdb/custom/config/
 operation_mode = logreplay
 ----
 
-For a multi-target setup Site 3 can be configured to follow the primary {SAPHANA} after takeover. For this a configuration 'register_secondaries_on_takeover=true' needs to be added in the system_replication block of the global.ini file. This configuration needs to be added on the two {SAPHANA} sites which are in cluster.
+For a multi-target setup Site 3 can be configured to follow the primary {saphana} after takeover. For this a configuration 'register_secondaries_on_takeover=true' needs to be added in the system_replication block of the global.ini file. This configuration needs to be added on the two {saphana} sites which are in cluster.
 
 ----
 [system_replication]
@@ -1495,7 +1521,7 @@ file can be edited by plain vi, or handled by any configuration management.
 
 The user {refsidadm} must be able to set the cluster attributes
 hana_{refsidLC}_site_srHook_* and hana_{refsidLC}_gsh.
-The {SAPHANA} system replication hook needs password free access. The following
+The {saphana} system replication hook needs password free access. The following
 example limits the sudo access to exactly setting the needed attribute.
 
 Replace the {refsidLC} by the lowercase SAP system ID.
@@ -1566,8 +1592,8 @@ Check if {saphana} has finished starting.
 
 === Testing the hook integration
 
-When the {SAPHANA} database has been restarted after the changes, check if the hook script is called correctly.
-A useful verification is to check the {SAPHANA} trace files as {refsidadm}:
+When the {saphana} database has been restarted after the changes, check if the hook script is called correctly.
+A useful verification is to check the {saphana} trace files as {refsidadm}:
 
 [subs="specialchars,attributes"]
 ----
@@ -1580,7 +1606,7 @@ A useful verification is to check the {SAPHANA} trace files as {refsidadm}:
 
 // TODO PRIO3: align check with manual page SAPHanaSrMultiTarget.py(7)
 
-== Configuring the cluster and {SAPHANA} resources
+== Configuring the cluster and {saphana} resources
 [[Cluster]]This chapter describes the configuration of the {sleha} cluster. The {sleha} is part of {sles4sap}.
 Further, the integration of {saphana} System Replication with the {sleha} cluster is explained. The integration is done
 by using the SAPHanaSR-ScaleOut package which is also part of {sles4sap}.
@@ -2062,7 +2088,7 @@ secondary of the new primary. With this parameter you can adapt the level of
 system replication automation.
 
 If set to *false*, the former primary must be manually registered. The cluster
-will not start this {SAPHANA} RDBMS until it is registered to avoid double
+will not start this {saphana} RDBMS until it is registered to avoid double
 primary up situations.
 
 |DUPLICATE_PRIMARY_TIMEOUT
@@ -2071,7 +2097,7 @@ situation occurs. If the time difference is less than the time gap, the
 cluster holds one or both sites in a "WAITING" status.
 This is to give an administrator the chance to react on a failover. If the complete node
 of the former primary crashed, the former primary will be registered after the
-time difference is passed. If "only" the {SAPHANA} RDBMS has crashed, then the
+time difference is passed. If "only" the {saphana} RDBMS has crashed, then the
 former primary will be registered immediately. After this registration to the
 new primary, all data will be overwritten by the system replication.
 |===
@@ -2229,7 +2255,7 @@ After all changes, as last step end the cluster maintenance mode.
 # crm configure property maintenance-mode=false
 ----
 
-== Setup of a scale-out multi target architecture
+== Setup of a scale-out multi-target architecture
 
 .<<Planning>> <<OsSetup>> <<SAPHanaInst>> <<SAPHanaHsr>> <<Integration>> <<Cluster>> MultiTarget <<Testing>>
 image::SAPHanaSR-ScaleOut-MultiTarget-Plan-Phase7.svg[scaledwidth="100%"]
@@ -2240,11 +2266,11 @@ image::SAPHanaSR-ScaleOut-MultiTarget-Plan-Phase7.svg[scaledwidth="100%"]
 ==== Prerequisites for the upgrade
 For successful and smooth upgrade, you need the following prerequisites:
 
-* SAP HANA supports multi-target system replication and HA/DR provider.
+* {saphana} supports multi-target system replication and HA/DR provider.
 * All cluster nodes are online in the cluster and there are no current errors in the cluster or HANA.
 * Package SAPHanaSR-ScaleOut of identical new version installed on all nodes, including majority maker.
 * Resource agents SAPHanaController and SAPHanaTopology new and identical on all nodes, including majority maker.
-* HADR provider hook script SAPHanaSrMultiTarget.py new and identical on all nodes, including majority maker.
+* HA/DR provider hook script SAPHanaSrMultiTarget.py new and identical on all nodes, including majority maker.
 * Sufficient sudoers permission on all nodes, including majority maker.
 * Correct and identical entries for HA/DR provider in global.ini at both sites
 * During upgrade the resources SAPHanaController and SAPHanaTopology need to be set into maintenance. HANA needs to reload its HA/DR provider configuration and hook scripts.
@@ -2259,11 +2285,11 @@ SAPHanaSR-manageAttr will always check prerequisites before changing the CIB att
 At a glance the upgrade procedure looks like this:
 
 * Initially check if everything looks fine.
-* Set SUSE HA cluster resources SAPHanaController and SAPHanaTopology into maintenance.
+* Set {sleha} cluster resources SAPHanaController and SAPHanaTopology into maintenance.
 * Install multi-target aware SAPHanaSR-ScaleOut package on all nodes.
 * Adapt sudoers permission on all nodes.
 * Replace HANA HA/DR provider configuration on both sites.
-* Check SUSE HA and HANA HA/DR provider for matching defined upgrade entry state.
+* Check {sleha} and HANA HA/DR provider for matching defined upgrade entry state.
 * Upgrade srHook attribute from old-style to multi-target.
 * Check SUSE HA cluster for matching defined upgrade target state.
 * Set SUSE HA cluster resources SAPHanaController and SAPHanaTopology from maintenance to managed.
@@ -2271,7 +2297,7 @@ At a glance the upgrade procedure looks like this:
 
 As final result of this procedure, the RAs and hook script are upgraded from old-style to multi-target. Further the SUSE HA cluster’s old-style global srHook attribute hana_<sid>_glob_srHook is replaced by site-aware attributes hana_<sid>_site_srHook_<SITE>. The new attributes might stay empty until HANA raises srConnectionChanged() events and triggers the new hook script for the first time. Further, the HANA global configuration and Linux sudoers permissions are adapted. New auxiliary SUSE HA cluster attributes are introduced
 
-=== Setup of third {saphana} site in a multi target architecture
+=== Setup of third {saphana} site in a multi-target architecture
 
 Once the existing or newly created part of scale-out performance optimized cluster is ready then we can follow the following steps to configure the third {saphana} site into multi-target.
 
@@ -2281,7 +2307,7 @@ Register the master node on the third site with the source of the {saphana} syst
 
 [subs="specialchars,attributes"]
 ----
-hdbnsutil -sr_register --name=FRA1 --remoteHost=hanaso0 --remoteInstance=00 --replicationMode=async --operationMode=logreplay
+hdbnsutil -sr_register --name=FRA --remoteHost=hanaso0 --remoteInstance=00 --replicationMode=async --operationMode=logreplay
 ----
 
 ==== Adapt configurations on clustered HANA nodes.
@@ -2350,9 +2376,9 @@ hanaso0:~ #
 
 Let us briefly understand some of the important items in above output that may seem different from earlier hook output:.
 
-* The “Glo(bal)” section shows the global “srHook” attribute that reflects the SAP HANA system replication status as reported by the HA/DR provider script. The attribute changes whenever SAP HANA raises an srConnectionChanged() event (and the Linux cluster is functional). This information helps to decide whether a SAP HANA take-over can be initiated in case the primary site fails. Only if the “srHook” attribute is “SOK”, the cluster will initiate a take-over. This “sync_state” attribute reflects the SAP HANA system replication status as reported by the SAPHanaController RA monitor. The RA sets this attribute whenever processing a monitor or probe action – basically the call is SAP HANA’s systemReplicationStatus.py. This happens on regular base, defined by the monitor interval, as well as on start/stop/promote/demote operations. 
-* The “Site” section “lss” column shows SAP HANA’s overall landscape status per site. The SAPHanaTopology RA monitor basically calls SAP HANA’s landscapeHostConfiguration.py script and updates this attribute accordingly. As long as SAP HANA does not report “lss”as “1”, no take-over will happen. A value of “0” indicates a fatal internal communication error that made it impossible to detect the current landscape status. The attribute “srr” indicates the detected system replication role. “P” is the abbreviation for “primary” and “S” for “secondary”. The SAPHanaTopology resource agent sets these values to allow operation in maintenance windows of SAP HANA. The attribute “mns” indicates the current identified active master names server of the site.
-* In the “Hosts” section the “roles” column shows actual and configured roles for HANA on each node. Since we do not have standby nodes, actual and configured is always the same for a given host once SAP HANA is running. This output reflects the entries we made in HANA’s nameserver.ini file. The SAPHanaTopology RA updates these attributes during each monitor run. The majority maker hanamm has no SAP HANA roles at all, obviously. The “score” column shows what scores SAPHanaController uses for placing the roles, like primary SAP HANA master name server, primary worker and more on the right hosts. 
+* The “Glo(bal)” section shows the global “srHook” attribute that reflects the {saphana} system replication status as reported by the HA/DR provider script. The attribute changes whenever {saphana} raises an srConnectionChanged() event (and the Linux cluster is functional). This information helps to decide whether a {saphana} takeover can be initiated in case the primary site fails. Only if the “srHook” attribute is “SOK”, the cluster will initiate a take-over. This “sync_state” attribute reflects the {saphana} system replication status as reported by the SAPHanaController RA monitor. The RA sets this attribute whenever processing a monitor or probe action – basically the call is {saphana}’s systemReplicationStatus.py. This happens on regular base, defined by the monitor interval, as well as on start/stop/promote/demote operations.
+* The “Site” section “lss” column shows {saphana}’s overall landscape status per site. The SAPHanaTopology RA monitor basically calls {saphana}’s landscapeHostConfiguration.py script and updates this attribute accordingly. As long as {saphana} does not report “lss”as “1”, no takeover will happen. A value of “0” indicates a fatal internal communication error that made it impossible to detect the current landscape status. The attribute “srr” indicates the detected system replication role. “P” is the abbreviation for “primary” and “S” for “secondary”. The SAPHanaTopology resource agent sets these values to allow operation in maintenance windows of {saphana}. The attribute “mns” indicates the current identified active master names server of the site.
+* In the “Hosts” section the “roles” column shows actual and configured roles for HANA on each node. Since we do not have standby nodes, actual and configured is always the same for a given host once {saphana} is running. This output reflects the entries we made in HANA’s nameserver.ini file. The SAPHanaTopology RA updates these attributes during each monitor run. The majority maker has no {saphana} roles at all, obviously. The “score” column shows what scores SAPHanaController uses for placing the roles, like primary SAP HANA master name server, primary worker and more on the right hosts. 
 
 == Testing the cluster
 
@@ -2449,7 +2475,7 @@ Expected Observation: Cluster notices the power down of the worker node on secon
 
 * Re-join of a previously power-off cluster node.
 
-Expected Observation: Cluster notices re-join of previously power-off node. If it was a worker node then there is no impact on the system replication. In case it was previously a master nameserver node then depending on the configuration it may automatically join as secondary or wait for a manual registration by admin.
+Expected Observation: Cluster notices re-join of previously power-off node. If it was a worker node then there is no impact on the system replication. In case it was previously a master name server node then depending on the configuration it may automatically join as secondary or wait for a manual registration by admin.
 
 ==== Tests regarding the complete secondary site
 
@@ -2512,7 +2538,7 @@ In your project, *avoid* the following:
   add client-prefer location rules, these activities are completely *forbidden!*.
 
 === Monitoring and tools
-You can use the High Availability Web Konsole (HAWK), {SAPHANA} Cockpit and
+You can use the High Availability Web Konsole (HAWK), {saphana} Cockpit and
 different command line tools for cluster status requests.
 
 ==== HAWK – cluster status and more
@@ -2541,10 +2567,10 @@ and cluster bootstrap parameters.
 Read the product manuals for a complete documentation of this powerful user
 interface.
 
-==== {SAPHANA} Cockpit
-Database-specific administration and checks can be done with {SAPHANA} Cockpit.
+==== {saphana} Cockpit
+Database-specific administration and checks can be done with {saphana} Cockpit.
 
-.{SAPHANA} Cockpit – System Replication Overview
+.{saphana} Cockpit – System Replication Overview
 image::SAP-HANA-Cockpit-SR-Overview.png[scaledwidth="95%"]
 
 NOTE: Be extremely careful with changing any parameter or the topology of the
@@ -2655,9 +2681,9 @@ hanaso0:~ #
 The majority maker _hanamm_ does not run an {saphana} instance and therefore
 neither has a role attribute nor a score or site value.
 
-==== {SAPHANA} LandscapeHostConfiguration
+==== {saphana} LandscapeHostConfiguration
 
-To check the status of an {SAPHANA} database and to figure out if the cluster
+To check the status of an {saphana} database and to figure out if the cluster
 should react, you can use the script `landscapeHostConfiguration.py`.
 
 .Check the landscape status as user {refsidadm}
@@ -2691,19 +2717,19 @@ return codes in the following way:
 |Description
 
 |4
-|{SAPHANA} database is up and OK. The cluster does interpret this as correctly
+|{saphana} database is up and OK. The cluster does interpret this as correctly
 running database.
 
 |3
-|{SAPHANA} database is up and in status INFO. The cluster does interpret this as
+|{saphana} database is up and in status INFO. The cluster does interpret this as
 a correctly running database.
 
 |2
-|{SAPHANA} database is up and in status warning. The cluster does interpret this
+|{saphana} database is up and in status warning. The cluster does interpret this
 as a correctly running database.
 
 |1
-|{SAPHANA} database is down. If the database should be up and is not own by
+|{saphana} database is down. If the database should be up and is not own by
 intention, this could trigger a takeover.
 
 |0
