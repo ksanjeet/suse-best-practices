@@ -588,7 +588,7 @@ As user root, type:
 
 NOTE: Please note that the new srHook script "SAPHanaSrMultiTarget.py" necessary for multi-target setup is not available in the installation ISO media and only available in update channels of SLES for SAP 15 SP3 or earlier. So, for a correctly working multi-target setup a full system patching is mandatory. From SLES for SAP 15 SP4 onwards the "SAPHanaSrMultiTarget.py" will be included in the the ISO.
 
-=== Configuring {sles4sap} to run {sapHana}
+=== Configuring {sles4sap} to run {saphana}
 
 ==== Tuning or modifying the operating system
 
@@ -684,7 +684,7 @@ directory `/root/.ssh/` from the first node to all further cluster members.
 
 ==== Setting up disk layout for {sapHana}
 
-An SAP certified storage system with a validated storage
+An {sap} certified storage system with a validated storage
 API is generally recommended. This is a prerequisite of a stable and reliable scale-out installation.
 
 - /hana/shared/{refSID}
@@ -740,27 +740,31 @@ File systems
 
 /hana/shared/{refSID}::
 The mount directory is used for shared files between all hosts in an {saphana}
-system. This directory needs to be accessible to each of the servers in the
-{saphana} cluster.
+system. Each HANA site has its own instance of this directory. It is accessible
+to the two nodes of that site. In our setup we use NFS.
 
 /hana/log/{refSID}::
-The default path to the log directory depends on the system ID of the {saphana}
-host.
+The default path to the log directory depends on the SAP System ID of the {saphana}
+host. In our setup each HANA site has its own instance of this directory.
+It is accessible to the two nodes of that site. Each node has its own subdirectories.
+In our setup we use NFS. It would be possible be to use local disks instead.
 
 /hana/data/{refSID}::
 The default path to the data directory depends on the system ID of the {saphana}
-host.
+host. In our setup each HANA site has its own instance of this directory.
+It is accessible to the two nodes of that site. Each node has its own subdirectories.
+In our setup we use NFS. It would be possible be to use local disks instead.
 
 /usr/sap::
 This is the path to the local SAP system instance directories. It is possible
 to join this location with the Linux installation.
 
 /sapsoftware:: (optional)
-Space for copying the SAP install software media. This NFS pool is mounted on both sites and contains
-the {saphana} installation media and installation parameter files.
+Space for copying the SAP install software media. This NFS pool is mounted on
+all HANA sites and contains the {saphana} installation media and installation
+parameter files.
 
 Set up host name resolution for all machines.
-
 You can either use a DNS server or modify the _/etc/hosts_ on *all* nodes.
 
 With maintaining the `/etc/hosts` file, you minimize the impact of a failing
@@ -1490,7 +1494,14 @@ system replication a hot standby system.
 For more details regarding both modes check the SAP documentation such as
 "How To Perform System Replication for SAP HANA" (see https://www.sap.com/documents/2013/10/26c02b58-5a7c-0010-82c7-eda71af511fa.html).
 
+For a multi-target setup, site 3 should follow the primary {saphana} after takeover.
+For this a configuration 'register_secondaries_on_takeover=true' needs to be added
+in the system_replication block of the global.ini file. This configuration needs to
+be added on the two {saphana} sites in the Linux cluster.
+
 Check both _global.ini_ files and add the operation mode, if needed.
+Also add the  'register_secondaries_on_takeover=true' for multi-target
+setups.
 
 section:: [ system_replication ]
 key:: operation_mode = logreplay
@@ -1499,15 +1510,44 @@ Path for the _global.ini_: /hana/shared/<SID>/global/hdb/custom/config/
 ----
 [system_replication]
 operation_mode = logreplay
-----
-
-For a multi-target setup Site 3 can be configured to follow the primary {saphana} after takeover. For this a configuration 'register_secondaries_on_takeover=true' needs to be added in the system_replication block of the global.ini file. This configuration needs to be added on the two {saphana} sites which are in cluster.
-
-----
-[system_replication]
-...
 register_secondaries_on_takeover=true
 ----
+
+// TODO PRIO2: detailled command example for above change
+
+
+=== Adapting {saphana} nameserver configuration
+
+We need to make two changes in the configuration of the clustered HANA nodes.
+The first change is done in the 'nameserver.ini'. This change ensures that
+there is no second master nameserver candidate as this is an ERP style setup.
+By default during the {saphana} installation the second node at each site will
+be configured as the master nameserver candidate. We need to remove the second
+node from the line starting with 'master ='. 
+
+Before configuration change:
+
+[subs="specialchars,attributes"]
+----
+[landscape]
+...
+master = hanaso0:30001 hanaso1:30001
+worker = hanaso0 hanaso1
+active_master = hanaso0:30001
+----
+
+After configuration change:
+
+[subs="specialchars,attributes"]
+----
+[landscape]
+...
+master = hanaso0:30001
+worker = hanaso0 hanaso1
+active_master = hanaso0:30001
+----
+
+// TODO PRIO2: detailled command example for above change
 
 
 === Allowing {refsidadm} to access the cluster
@@ -1523,6 +1563,7 @@ The user {refsidadm} must be able to set the cluster attributes
 hana_{refsidLC}_site_srHook_* and hana_{refsidLC}_gsh.
 The {saphana} system replication hook needs password free access. The following
 example limits the sudo access to exactly setting the needed attribute.
+See manual pages sudoers(5) and SAPHanaSrMultiTarget.py(7) for details.
 
 Replace the {refsidLC} by the lowercase SAP system ID.
 
@@ -1549,7 +1590,6 @@ Cmnd_Alias GSH = /usr/sbin/crm_attribute -n hana_{refsidLC}_glob_srHook -v * -l 
 {refsidadm} ALL=(ALL) NOPASSWD: SOK, SFAIL, GSH
 ----
 ////
-Manual page SAPHanaSrMultiTarget.py(7) contains additional details.
 
 ===================================
 
@@ -1557,7 +1597,8 @@ Manual page SAPHanaSrMultiTarget.py(7) contains additional details.
 ===================================
 ----
 # SAPHanaSR-ScaleOut needs for srHook
-tstadm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_tst_site_srHook_*
+{sidadm} ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_{mysidLC}_site_srHook_*
+{sidadm} ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_{mysidLC}_gsh *
 ----
 ===================================
 
@@ -1639,7 +1680,7 @@ to be installed at *all* cluster nodes, including the majority maker.
 If you have the packages installed before, make sure to get the newest updates
 on *all* nodes
 ----
-zypper patch
+# zypper patch
 ----
 
 === Configuring the basic cluster
@@ -2310,43 +2351,8 @@ Register the master node on the third site with the source of the {saphana} syst
 hdbnsutil -sr_register --name=FRA --remoteHost=hanaso0 --remoteInstance=00 --replicationMode=async --operationMode=logreplay
 ----
 
-==== Adapt configurations on clustered HANA nodes.
-We need to make 2 changes in the HANA configurations of the clustered HANA nodes. The first change is done in the 'nameserver.ini'. This change ensures that there is no second master candidate as this is an ERP style setup. By default during the HANA installation the second node in each site will be configured as the master candidate. We need to remove the second node from the line starting with 'master ='. 
 
-Before configuration change:
-
-[subs="specialchars,attributes"]
-----
-[landscape]
-...
-master = hanaso0:30001 hanaso1:30001
-worker = hanaso0 hanaso1
-active_master = hanaso0:30001
-----
-
-After configuration change:
-
-[subs="specialchars,attributes"]
-----
-[landscape]
-...
-master = hanaso0:30001
-worker = hanaso0 hanaso1
-active_master = hanaso0:30001
-----
-
-The second change(if not already done in previous steps) needs to be done in the section system_replication of global.ini of the first two sites add the configuration:
-
-[subs="specialchars,attributes"]
-----
-[system_replication]
-...
-register_secondaries_on_takeover = true
-----
-
-Above configuration will ensure that whenever there is a takeover between site A and site B, site C will re-register and always sync with the correct source.
-
-==== Check SAPHanaSR attributes for the third site.
+==== Check SAPHanaSR attributes for the third site
 
 SAPHanaSR-showAttr shows the status of the third site which should be as below:
 
