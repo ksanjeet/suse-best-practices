@@ -24,27 +24,32 @@ include::common_copyright_gfdl.adoc[]
 
 === Introduction
 
-{sles4sapReg} is optimized in various
-ways for {SAPreg} applications. This guide provides detailed information about
-installing and customizing _{sles4sap}_
-for {saphana} scale-out system replication in a multi-target architecture where the automation of system replication between {saphana} first site to {saphana} second site  is managed {sles4sapReg} while there is an additional system replication to a third site and this system replication is outside the scope of automation by {sles4sapReg}.
+{sles4sapReg} is optimized in various ways for {SAPreg} applications. This guide
+provides detailed information about installing and customizing _{sles4sap}_ for
+{saphana} scale-out system replication in a multi-target architecture.
+The automation of system replication between {saphana} first site to {saphana}
+second site is managed by {sles4sap} while there is an additional system
+replication to a third site outside the scope of automation by {sles4sap}.
 
 High availability is an important aspect of running your mission-critical
 {saphana} servers.
 
-The {saphana} scale-out multi-target system replication is a replication of all data in
-{saphana} to a second {saphana} system usually in a SYNC replication and to a third  {saphana} system usually in an ASYNC replication. The {saphana} itself replicates all of its data to a secondary {saphana} instance. It is an out-of-the-box, standard feature.
+The {saphana} scale-out multi-target system replication is a replication of all
+data in {saphana} to a second {saphana} system in a SYNC replication. To a third
+{saphana} system usually it is an ASYNC replication. The {saphana} itself
+replicates all of its data to secondary {saphana} instances. It is an
+out-of-the-box, standard feature.
 
 The recovery time objective (RTO) is minimized through the data replication at
 regular intervals. {saphana} supports asynchronous and synchronous modes. The
 document at hand describes the synchronous replication from memory into memory
 of the second system. This is the only method that allows the cluster to make a
-decision based on coded algorithms. The replication to the third hana system is a asynchronous replication and is outside the control of cluster.
-
+decision based on coded algorithms.
 
 === Abstract
 
-This guide describes planning, setup, and basic testing of {sles4sap} {prodNr} for "SAP HANA Scale-Out Multi-Target System Replication" scenario.
+This guide describes planning, setup, and basic testing of {sles4sap} {prodNr}
+for "SAP HANA Scale-Out Multi-Target System Replication - ERP style" scenario.
 
 From the application perspective the following variants are covered:
 
@@ -55,13 +60,13 @@ From the application perspective the following variants are covered:
 - Active/active read enabled for all of the above
 - HANA host auto-failover is not used, there is only one master name server configured and no candidates
 - HANA host auto-failover is restricted and not explained in this guide
-// DONE PRIO3: - System replication with secondary site read-enabled
 
 From the infrastructure perspective the following variants are covered:
 
 - 3-site cluster with disk-based SBD fencing and a 4th non-cluster site ( [ A => B ] -> C )
 - 3-site cluster with disk-based SBD fencing, a 4th non-cluster site with a 5th non-cluster site invisible to the cluster is possible, but not explained in this guide ( [ A => B ] -> C -> D )
 - 1-site cluster with disk-based SBD fencing and a 2nd non-cluster site is possible, but not explained in this guide
+- other fencing is possible, but not explained here
 
 === Additional documentation and resources
 
@@ -87,9 +92,14 @@ include::common_intro_feedback.adoc[]
 // TODO PRIO3: work on SUSE doc standard conventions file
 //include::common_intro_typografie.adoc[]
 
+
 == Scope of this documentation
-This document describes how to set up {saphana} scale-out multi-target system replication with a cluster installed on two sites(and a third site which acts as majority maker) based on {sles4sap} {pn15} {psp15} and how to add an additional non cluster site for a multi-target architecture.
-This concept can also be used with {sles4sap} {pn15} SP1 or newer.
+
+This document describes how to set up {saphana} scale-out multi-target system
+replication with a cluster installed on two sites (and a third site which acts
+as majority maker) based on {sles4sap} {pn15} SP4 and how to add an
+additional non cluster site for a multi-target architecture. This concept can
+also be used with {sles4sap} {pn15} SP1 or newer.
 
 To give a better overview the installation and setup is subdivided into
 seven steps.
@@ -107,7 +117,9 @@ image::SAPHanaSR-ScaleOut-MultiTarget-Plan-Phase0.svg[scaledwidth="100%"]
 - Testing (section <<Testing>>)
 
 We will first set up a {sles4sap} cluster controlling
-two sites of {saphana} scale-out in a system replication configuration. We will next set up a third site which is outside {sleha} cluster but acts as additional {saphana} target forming a multi-target architecture.
+two sites of {saphana} scale-out in a system replication configuration. We will
+next set up a third site which is outside {sleha} cluster but acts as additional
+{saphana} target forming a multi-target architecture.
 
 .Cluster with {SAPHana} Multi-Target SR - performance optimized
 image::Multi-Target.svg[scaledwidth="100%"]
@@ -120,9 +132,10 @@ Details on requirements and supported scenarios are given below.
 //A dedicated setup guide describes how to manage a specific HANA scale-out
 //configuration without standby-nodes. You will find background information on that
 //setup in a series of blog articles on {#towardsZeroDowntime}, for example 
-https://www.suse.com/c/sap-hana-scale-out-system-replication-for-large-erp-systems/ .
+//https://www.suse.com/c/sap-hana-scale-out-system-replication-for-large-erp-systems/ .
 
-In this guide we will cover a scale-out scenario without standby nodes, thus there is no host auto-failover. More details are explained at
+In this guide we will cover a scale-out scenario without standby nodes, thus there
+is no host auto-failover. More details are explained at
 https://www.suse.com/c/sap-hana-scale-out-system-replication-for-large-erp-systems/ .
 The scenario where {saphana} is configured for host auto-failover is explained at
 https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-scaleOut-PerfOpt-15/ .
@@ -138,7 +151,8 @@ https://www.suse.com/c/sap-hana-scale-out-multi-target-upgrade/ .
 .Planning <<OsSetup>> <<SAPHanaInst>> <<SAPHanaHsr>> <<Integration>> <<Cluster>> <<MultiTarget>> <<Testing>>
 image::SAPHanaSR-ScaleOut-MultiTarget-Plan-Phase1.svg[scaledwidth="100%"]
 
-[[Planning]] Planning the installation is essential for a successful {saphana} cluster setup.
+[[Planning]]
+Planning the installation is essential for a successful {saphana} cluster setup.
 
 What you need before you start:
 // TODO PRIO3: (all) should we change from NFS to something more neutral in the following list like replacing 'NFS storage pools' by 'SAP HANA certified storage pools'?
@@ -159,10 +173,12 @@ Even for such tests the requirements can increase depending on your test scenari
 For productive systems ask your hardware vendor or use the official SAP sizing
 tools and services.
 
-NOTE: Refer to {saphana} TDI documentation for allowed storage
-configuration and file systems.
+NOTE: Refer to {saphana} TDI documentation for allowed storage configuration
+and file systems.
 
-NOTE: Although, it is possible to have standby nodes in scale-out multi-target setup, however this guide is created with a focus of ERP style setup and involves no standby nodes. All 3 sites have 2 nodes each.
+NOTE: Although, it is possible to have standby nodes in scale-out multi-target setup,
+however this guide is created with a focus of ERP style setup and involves no standby
+nodes. All 3 sites have 2 nodes each.
 
 .Simplified NFS share structure of a (2+0 \<= 2+0 \-> 2+0) {saphana} multi-target system replication
 image::SAPHanaSR-ScaleOut-MultiTarget-1.svg[scaledwidth="100%"]
@@ -173,7 +189,7 @@ majority maker:
 - 6 VMs with each 32 GB RAM, 50 GB disk space
 - 1 VM with 2 GB RAM, 50 GB disk space
 - 1 shared disk for SBD with 10 MB disk space
-- 3 NFS pools (one per site) with a capacity of each 200 GB
+- 3 NFS pools (one per site) with a capacity of each 120 GB
 - 1 additional IP address for takeover
 -  optional: 2nd additional IP address for active/read-enabled setup
 
@@ -1447,8 +1463,8 @@ If the scripts are moved or copied, regular {SUSE} package updates will not work
 
 === Stopping {saphana}
 
-The {saphana} needs to be stopped at both sites  that will be part of the 
-Linux cluster. At each site do the following:
+The {saphana} needs to be stopped at both sites that will be part of the Linux
+cluster. At each site do the following:
 [subs="specialchars,attributes"]
 ----
 # su - {refsidadm}
