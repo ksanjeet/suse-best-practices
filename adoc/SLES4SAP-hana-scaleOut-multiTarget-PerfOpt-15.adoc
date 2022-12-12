@@ -66,7 +66,14 @@ From the infrastructure perspective the following variants are covered:
 - 3-site cluster with disk-based SBD fencing and a 4th non-cluster site ( [ A => B ] -> C )
 - 3-site cluster with disk-based SBD fencing, a 4th non-cluster site with a 5th non-cluster site invisible to the cluster is possible, but not explained in this guide ( [ A => B ] -> C -> D )
 - 1-site cluster with disk-based SBD fencing and a 2nd non-cluster site is possible, but not explained in this guide
-- other fencing is possible, but not explained here
+- Other fencing is possible, but not explained here
+- On-premises deployment on physical and virtual machines
+- Public cloud deployment (usually needs additional documentation focusing on
+the cloud specific implementation details)
+
+Deployment automation simplifies roll-out. There are several options available, particularly on public cloud platfoms. Ask your public cloud provider or your
+{SUSE} contact for details.
+
 
 === Additional documentation and resources
 
@@ -310,7 +317,7 @@ Multi-Target replication is possible since {saphana} 2.0 SPS04.
 See also the requirements section below.
 
 
-=== The concept of the Multi-Target Scenario
+=== The concept of the multi-target scenario
 
 A multi-target scenario consists of 3 sites. Site 1 and site 2 are in HA cluster while site 3  is outside the HA cluster.
 
@@ -471,7 +478,7 @@ automation with the cluster is set up and configured. Finally, the multi-target 
 
 Multiple installation guides are already existing, with different reasons to set up the server in a certain way. 
 Below it is outlined where this information can be found.
-In addition, you will find important details you should consider to get a system which is well prepared to deliver {sapHana}.
+In addition, you will find important details you should consider to get a system which is well prepared to deliver {saphana}.
 
 ==== Installing the base operating system
 
@@ -480,7 +487,7 @@ All supported installation methods and minimum requirement are described in the 
 ({deploymentGuide15}).
 In case of automated installations you can find further information in the _AutoYaST Guide_
 ({autoYastGuide15}).
-The major installation guide for {sles4sap} to fit all requirements for {sapHana} is described in the
+The major installation guide for {sles4sap} to fit all requirements for {saphana} is described in the
 SAP notes:
 
 // SUSE and SAP are kept literal here not by the reference, because its a quote of an external title
@@ -489,8 +496,8 @@ SAP notes:
 
 
 ==== Installing additional software
-{SUSE} delivers with {sles4sap} special resource agents for {sapHana}. With the pattern _sap-hana_ the resource
-agent for {sapHana} *ScaleUp* is installed. For the *ScaleOut* scenario you need a special resource agent.
+{SUSE} delivers with {sles4sap} special resource agents for {saphana}. With the pattern _sap-hana_ the resource
+agent for {saphana} *ScaleUp* is installed. For the *ScaleOut* scenario you need a special resource agent.
 Follow the instructions below on each node if you have installed the systems based on SAP note {sapnoteset15}.
 The pattern _High Availability_ summarizes all tools recommended to be installed on *all* nodes, including the
 _majority maker_.
@@ -502,7 +509,7 @@ _majority maker_.
 To do so, for example, use zypper:
 
 // SUSE is kept literal here, because it is a quote from a command output
-.Uninstall the {sapHanaSR} agent for ScaleUP
+.Uninstall the {sapHanaSR} agent for scale-up
 ====
 
 As user_root_ , type:
@@ -533,7 +540,7 @@ Continue? [y/n/...? shows all options] (y): y
 ----
 ====
 
-.Installation of the {sapHanaSR} agent for ScaleOut
+.Installation of the {sapHanaSR} agent for scale-out
 ====
 
 As user root, type:
@@ -620,7 +627,8 @@ The SAP note {sapnoteprep} explains three ways to implementing the settings.
 ----
 ====
 
-==== Enabling SSH access via public key (optional)
+==== Enabling ssh access via public key (optional)
+
 Public key authentication provides SSH users access to their servers without entering their passwords.
 SSH keys are also more secure than passwords, because the private key used to secure the connection
 is never shared. Private keys can also be encrypted. Their encrypted contents cannot easily be read.
@@ -629,7 +637,7 @@ only one ssh-key pair which enables SSH access to all cluster nodes.
 
 NOTE: Follow your company security policy to set up access to the systems.
 
-.SSH key creation and exchange
+.ssh key creation and exchange
 ====
 As user root create an SSH key on one node.
 
@@ -686,8 +694,9 @@ them beforehand.
 ...
 ----
 
-After collecting all host keys store them in a file named `authorized_keys`. Push the entire
-directory `/root/.ssh/` from the first node to all further cluster members.
+After collecting all host keys store them in a file named `authorized_keys`.
+Push the entire directory `/root/.ssh/` from the first node to all further
+cluster members.
 
 ----
 # rsync -ay /root/.ssh/ <host2>:/root/.ssh/
@@ -698,10 +707,11 @@ directory `/root/.ssh/` from the first node to all further cluster members.
 
 ====
 
-==== Setting up disk layout for {sapHana}
+==== Setting up disk layout for {saphana}
 
-An {sap} certified storage system with a validated storage
-API is generally recommended. This is a prerequisite of a stable and reliable scale-out installation.
+An {sap} certified storage system with a validated storage API is generally
+recommended. This is a prerequisite of a stable and reliable scale-out
+installation.
 
 - /hana/shared/{refSID}
 - /hana/data/{refSID}
@@ -760,9 +770,10 @@ system. Each HANA site has its own instance of this directory. It is accessible
 to the two nodes of that site. In our setup we use NFS.
 
 /hana/log/{refSID}::
-The default path to the log directory depends on the SAP System ID of the {saphana}
-host. In our setup each HANA site has its own instance of this directory.
-It is accessible to the two nodes of that site. Each node has its own subdirectories.
+The default path to the log directory depends on the SAP System ID of the
+{saphana} host. In our setup each HANA site has its own instance of this
+directory. It is accessible to the two nodes of that site. Each node has its
+own subdirectories.
 In our setup we use NFS. It would be possible be to use local disks instead.
 
 /hana/data/{refSID}::
@@ -1373,7 +1384,7 @@ secondary.
 ~> sapcontrol -nr {refInst} -function StartSystem
 ----
 
-Wait until the {sapHana} database is started completely.
+Wait until the {saphana} database is started completely.
 ==========
 
 .Check the system replication configuration as Linux user {refsidadm}
@@ -1692,6 +1703,7 @@ Check if {saphana} has finished starting.
 ~> sapcontrol -nr {refinst} -function WaitforStarted 300 20
 ~> sapcontrol -nr {refinst} -function GetSystemInstanceList
 ----
+// TODO PRIO2: output example
 ==========
 
 
@@ -1714,6 +1726,7 @@ See also manual page SAPHanaSrMultiTarget.py(7).
 ~> grep SAPHanaSr.*init nameserver_*.trc | tail -3
 ~> grep -A5 "init.called" nameserver_saphanasr_multitarget_hook.trc 
 ----
+// TODO PRIO2: output example
 
 // TODO PRIO2: what makes sense right after first init? should we move this example to general testing?
 ////
@@ -1747,6 +1760,7 @@ See also manual page susChkSrv.py(7).
 ~> grep HADR.*load.*susChkSrv nameserver_*.trc | tail -3
 ~> grep susChkSrv.init nameserver_suschksrv.trc | tail -3
 ----
+// TODO PRIO2: output example
 
 // TODO PRIO2: what makes sense right after first init? should we move this example to general testing?
 ////
