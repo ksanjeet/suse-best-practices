@@ -2235,7 +2235,9 @@ Add the configuration to the cluster.
 ----
 ==========
 
-[cols="1,2", options="header"]
+// TODO PRIO2: make 1st col wide enough
+// [cols="1,2", options="header"]
+[width="100%",cols="40%,60%",options="header"]
 .Table Description of important Resource Agent parameter
 |===
 |Name
@@ -2424,10 +2426,19 @@ After all changes, as last step end the cluster maintenance mode.
 .<<Planning>> <<OsSetup>> <<SAPHanaInst>> <<SAPHanaHsr>> <<Integration>> <<Cluster>> MultiTarget <<Testing>>
 image::SAPHanaSR-ScaleOut-MultiTarget-Plan-Phase7.svg[scaledwidth="100%"]
 
-[[MultiTarget]] This chapter is divided into two sections. The first section describes the procedure to upgrade an existing scale-out performance optimized setup into a multi-target ready setup. The second section is about configuring the 3rd site in a multi-target setup after freshly installing the whole landscape using the procedures mentioned in the document so far.  
+[[MultiTarget]]
+This chapter is divided into two sections. Both are optional, depending oon your needs.
+
+- The first section describes the procedure to upgrade an existing scale-out performance optimized setup into a multi-target ready setup. It applies only if you plan to upgrade an existing not multi-target aware scale-out cluster.
+
+- The second section is about configuring the 3rd site in a multi-target setup after freshly installing the whole landscape using the procedures mentioned in the document so far.  
 
 === Upgrading an existing cluster of scale-out performance optimized HANA
+
+This section applies only if you plan to upgrade an existing not multi-target aware scale-out cluster into a multi-target aware one. This is not the general approach. Usually you should start with a fresh installation for {saphana} scale-out multi-target systems.
+
 ==== Prerequisites for the upgrade
+
 For successful and smooth upgrade, you need the following prerequisites:
 
 * {saphana} supports multi-target system replication and HA/DR provider.
@@ -2443,6 +2454,8 @@ For successful and smooth upgrade, you need the following prerequisites:
 The upgrade will remove the global srHook attribute. Instead it will introduce site-specific attributes. Values for srHook attributes are written only on HANA srConnectionChanged() event. So the new attribute for HANA secondary site might stay empty in case HANA is not reloaded after the upgrade. In that case the polling attribute sync_state represents HANA’s system replication status as fallback.
 
 SAPHanaSR-manageAttr will always check prerequisites before changing the CIB attribute from one common hana_<sid>_glob_srHook to site-sepcific attributes hana_<sid>_site_srHook_<SITE>. By calling “SAPHanaSR-manageAttr –check …” you can run that built-in check before trying an upgrade. 
+
+See manual pages SAPHanaSR-manageAttr(8) and SAPHanaSrMultiTarget.py(7) for details.
 
 ==== Upgrade procedures
 
@@ -2461,17 +2474,35 @@ At a glance the upgrade procedure looks like this:
 
 As final result of this procedure, the RAs and hook script are upgraded from old-style to multi-target. Further the SUSE HA cluster’s old-style global srHook attribute hana_<sid>_glob_srHook is replaced by site-aware attributes hana_<sid>_site_srHook_<SITE>. The new attributes might stay empty until HANA raises srConnectionChanged() events and triggers the new hook script for the first time. Further, the HANA global configuration and Linux sudoers permissions are adapted. New auxiliary SUSE HA cluster attributes are introduced
 
+For more information, please read the related blog article
+https://www.suse.com/c/sap-hana-scale-out-multi-target-upgrade/ 
+
+
 === Setup of third {saphana} site in a multi-target architecture
+
+This section applies only if you plan to attach a 3rd replication site to the
+existing multi-targe aware cluster. This is a general approach. Neverteless, a
+3rd site could have been prepared already.
 
 Once the existing or newly created part of scale-out performance optimized cluster is ready then we can follow the following steps to configure the third {saphana} site into multi-target.
 
+==== Install {saphana} at the third site
+
+You can follow the steps described for the secondary site, as in chapter
+<<SAPHanaInst>>.
+Just make sure to use the identifiers for the third site, as defined in the
+parameter sheet.
+
 ==== Register the third site 
 
-Register the master node on the third site with the source of the {saphana} system replication.
+Register the master node on the third site with the source of the {saphana}
+system replication. In our case the source is the primary site with its
+respective primary master name server. Use the third site´s site name as noted
+in the parameter sheet.
 
 [subs="specialchars,attributes"]
 ----
-hdbnsutil -sr_register --name=FRA --remoteHost=hanaso0 --remoteInstance=00 --replicationMode=async --operationMode=logreplay
+~> hdbnsutil -sr_register --name=FRA --remoteHost=hanaso0 --remoteInstance=00 --replicationMode=async --operationMode=logreplay
 ----
 
 
@@ -2492,13 +2523,13 @@ FRA1                         SOK
 ROT1  30         4   hanaso2 SOK    S   
 WDF1  1657838665 4   hanaso0 PRIM   P   
 
-Hosts   clone_state gra gsh node_state roles                        score site 
--------------------------------------------------------------------------------
+Hosts   clone_state gra gsh node_state roles                        score  site 
+--------------------------------------------------------------------------------
 hanamm                      online                                             
-hanaso0 PROMOTED    2.0 2.2 online     master1:master:worker:master 150   WDF1 
-hanaso1 DEMOTED     2.0 2.2 online     slave:slave:worker:slave   140   WDF1 
-hanaso2 DEMOTED     2.0 2.2 online     master1:master:worker:master 100   ROT1 
-hanaso3 DEMOTED     2.0 2.2 online     slave:slave:worker:slave   80    ROT1 
+hanaso0 PROMOTED    2.0 2.2 online     master1:master:worker:master 150    WDF1 
+hanaso1 DEMOTED     2.0 2.2 online     slave:slave:worker:slave     -10000 WDF1 
+hanaso2 DEMOTED     2.0 2.2 online     master1:master:worker:master 100    ROT1 
+hanaso3 DEMOTED     2.0 2.2 online     slave:slave:worker:slave     -12200 ROT1 
 
 hanaso0:~ #
 ----
@@ -2508,6 +2539,7 @@ Let us briefly understand some of the important items in above output that may s
 * The “Glo(bal)” section shows the global “srHook” attribute that reflects the {saphana} system replication status as reported by the HA/DR provider script. The attribute changes whenever {saphana} raises an srConnectionChanged() event (and the Linux cluster is functional). This information helps to decide whether a {saphana} takeover can be initiated in case the primary site fails. Only if the “srHook” attribute is “SOK”, the cluster will initiate a take-over. This “sync_state” attribute reflects the {saphana} system replication status as reported by the SAPHanaController RA monitor. The RA sets this attribute whenever processing a monitor or probe action – basically the call is {saphana}’s systemReplicationStatus.py. This happens on regular base, defined by the monitor interval, as well as on start/stop/promote/demote operations.
 * The “Site” section “lss” column shows {saphana}’s overall landscape status per site. The SAPHanaTopology RA monitor basically calls {saphana}’s landscapeHostConfiguration.py script and updates this attribute accordingly. As long as {saphana} does not report “lss”as “1”, no takeover will happen. A value of “0” indicates a fatal internal communication error that made it impossible to detect the current landscape status. The attribute “srr” indicates the detected system replication role. “P” is the abbreviation for “primary” and “S” for “secondary”. The SAPHanaTopology resource agent sets these values to allow operation in maintenance windows of {saphana}. The attribute “mns” indicates the current identified active master names server of the site.
 * In the “Hosts” section the “roles” column shows actual and configured roles for HANA on each node. Since we do not have standby nodes, actual and configured is always the same for a given host once {saphana} is running. This output reflects the entries we made in HANA’s nameserver.ini file. The SAPHanaTopology RA updates these attributes during each monitor run. The majority maker has no {saphana} roles at all, obviously. The “score” column shows what scores SAPHanaController uses for placing the roles, like primary SAP HANA master name server, primary worker and more on the right hosts. 
+
 
 == Testing the cluster
 
@@ -2520,15 +2552,18 @@ derived from project or customer expectations are defined and passed completely.
 *Without testing the project is likely to fail in production use*.
 
 The test prerequisite, if not described differently, is always that all cluster
-nodes are booted, are already normal members of the cluster and the {saphana} RDBMS
-is running. The system replication is in state *SYNC* represented by 'SOK'.
-The cluster is idle, no actions are pending, no migration constraints left over, no fail-counts left over.
+nodes are booted, are already normal members of the cluster and the {saphana}
+RDBMS is running. The system replication is in state *SYNC* represented by 'srHook SOK' for the secondary site.
+The cluster is idle, no actions are pending, no migration constraints left over, no failcounts left over.
+
+The expected results are given for SAPHanaController parameter AUTOMATED_REGISTER="false" and SBD parameter SBD_START_MODE="always". These are installation defaults.
 
 
 === Generic cluster tests
 
-The cluster tests described in this section cover the cluster reaction during operations. This includes starting and stopping
-the complete cluster or simulating SBD failures and much more.
+The cluster tests described in this section cover the cluster reaction during
+operations. This includes starting and stopping the complete cluster or
+simulating SBD failures and much more.
 
 * Parallel start of all cluster nodes (`crm cluster start` should be done in a short time frame).
 * Stop of the complete cluster.
@@ -2537,8 +2572,8 @@ the complete cluster or simulating SBD failures and much more.
 * Isolate the SBD.
 * Simulate a maintenance procedure with cluster continuously running.
 * Simulate a maintenance procedure with cluster restart.
-// * ? Force a sr_takeover via cluster migration commands (use force!!).
 * Kill the corosync process of one of the cluster nodes.
+
 
 === Tests on the primary site
 
@@ -2546,20 +2581,24 @@ The tests described in this section are checking the reaction on several failure
 
 ==== Tests regarding cluster nodes of the primary site
 
-The tests listed here check the {saphana} and cluster reaction if one or more nodes of the primary site are failing or
-re-joining the cluster.
+The tests listed here will check the {saphana} and cluster reaction if one or
+more nodes of the primary site are failing.
+// TODO PRIO2: or re-joining the cluster.
 
 * Power-off master name server of the primary.
 
-Expected Observation: The master candidate node the secondary site is promoted as the new master. System Replication gets broken between the primary and secondary site. The source of system replication to the DR site changes to the new master.
- 
+Expected Observation: The cluster initiates a takeover. The master name server at secondary site gets promoted. The source of system replication to the DR site changes to the new primary site. The former primary site stays unregistered.
+
 * Power-off the worker node but not the master name server of the primary. 
 
-Expected Observation: Cluster notices that the worker node at primary site is down. No impact on the system replication.
+Expected Observation: The cluster will fail to stop the remaining HANA instance and thus fence the primary master node. Then the cluster initiates a takeover. The master name server at secondary site gets promoted. The source of system replication to the DR site changes to the new primary site. The former primary site stays unregistered.
 
+////
+// TODO PRIO2: define test for correct setup - the below does not fit
 * Re-join of a previously power-off cluster node.
 
 Expected Observation: Cluster notices re-join of previously power-off node. If it was a worker node then there is no impact on the system replication. In case it was previously a master node then depending on the configuration it may automatically join as secondary or wait for a manual registration by admin.
+////
 
 ==== Tests regarding the complete primary site
 
@@ -2567,23 +2606,40 @@ This test category is simulating a complete site failure.
 
 * Power-off all nodes of the primary site in parallel.
 
-Expected Observation: The master candidate on the secondary site is promoted as new master. System replication gets broken between pimary and secondary site. The source of system replication to the DR site changes to the new master.
+Expected Observation: The cluster initiates a takeover. The master name server at secondary site gets promoted. The source of system replication to the DR site changes to the new primary site. The former primary site stays unregistered.
+
+* Manually registering a failed primary site as new secondary.
+
+Prerequistes: A failed former primary sites has just been manually registered. The exact site name has been used as already known to the cluster, see parameter sheet.
+
+Expected Observation: The cluster accepts the registered site as secondary. The HANA resources are looking fine. After a while, system replication for the new secondary site gets okay (srHook SOK). 
+
 
 ==== Tests regarding the {saphana} instances of the primary site
 
-The tests listed here are checks about the {saphana} and cluster reactions triggered by application failures such as a crashed {saphana} instance.
+The tests listed here are checks about the {saphana} and cluster reactions
+triggered by application failures such as a crashed {saphana} instance.
 
 * Kill the {saphana} instance of the master name server of the primary. 
 
-Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site.
+Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site. The master name server at secondary site gets promoted. The source of system replication to the DR site changes to the new primary site. The former primary site stays unregistered.
 
-* Kill the {saphana} instance of the worker node but not the master name server of the primary. 
+* Kill the {saphana} instance of the worker node but not the master nameserver of the primary. 
 
-Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site.
+Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site. The master name server at secondary site gets promoted. The source of system replication to the DR site changes to the new primary site. The former primary site stays unregistered.
 
 * Kill sapstartsrv of any {saphana} instance of the primary.
 
-Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site.
+Expected Observation: Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site. The master name server at secondary site gets promoted. The source of system replication to the DR site changes to the new primary site. The former primary site stays unregistered.
+
+* Kill hdbindexserver processs on the slave node of the primary.
+
+Expected Observation: {saphana} HA/DR provider stops HANA instance. Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site. The master name server at secondary site gets promoted. The source of system replication to the DR site changes to the new primary site. The former primary site stays unregistered.
+
+* Kill hdbindexserver processs on the master nameserver node of the primary.
+
+Expected Observation: {saphana} HA/DR provider stops HANA instance. Cluster notices the failure of monitor operation of the HANA resource and initiates a takeover to the secondary site. The master name server at secondary site gets promoted. The source of system replication to the DR site changes to the new primary site. The former primary site stays unregistered.
+
 
 === Tests on the secondary site
 
@@ -2591,20 +2647,32 @@ The tests described in this section are checking the reaction on several failure
 
 ==== Tests regarding cluster nodes of the secondary site
 
-The tests listed here check the {saphana} and cluster reaction if one or more nodes of the secondary site are failing or
-re-joining the cluster.
+The tests listed here will check the {saphana} and cluster reaction if one or
+more nodes of the secondary site are failing.
+// TODO PRIO2: or re-joining the cluster.
 
-* Power-off master name server of the secondary. 
+* Power-off master name server of the secondary.
 
-Expected Observation: Cluster notices the power down of the master candidate on secondary. System replication gets broken between primary and secondary.
+Expected Observation: Cluster notices the power down of the master name server on secondary. System replication gets broken between primary and secondary.
 
-* Power-off the worker node but not the master name server of the secondary. 
+// TODO PRIO2: re-joining master nameserver node to the cluster.
 
-Expected Observation: Cluster notices the power down of the worker node on secondary site. No impact on the system replication.
+* Power-off the worker node but not the master name server of the secondary.
 
-* Re-join of a previously power-off cluster node.
+Expected Observation: Cluster notices the power down of the worker node on secondary site. The remaining master name server will be stopped. System replication gets broken between primary and secondary.
 
-Expected Observation: Cluster notices re-join of previously power-off node. If it was a worker node then there is no impact on the system replication. In case it was previously a master name server node then depending on the configuration it may automatically join as secondary or wait for a manual registration by admin.
+* Re-join of a previously power-off worker node.
+
+Expected Observation: Cluster notices re-join of previously power-off node. The HANA instance gets started. System replication gets back to okay (srHook SOK).
+
+* Kill hdbindexserver processs on the slave node of the secondary.
+
+Expected Observation: {saphana} HA/DR provider stops HANA instance. Cluster notices the failure of monitor operation of the HANA resource and initiates a local restart of the secondary.
+
+* Kill hdbindexserver processs on the master nameserver node of the secondary.
+
+Expected Observation: {saphana} HA/DR provider stops HANA instance. Cluster notices the failure of monitor operation of the HANA resource and initiates a local restart of the secondary site.
+
 
 ==== Tests regarding the complete secondary site
 
@@ -2612,7 +2680,11 @@ This test category is simulating a complete site failure.
 
 * Power-off all nodes of the secondary site in parallel.
 
-Expected Observation: Cluster notices the nodes that are down. System replication gets broken.
+Expected Observation: Cluster notices the nodes that are down. System replication gets broken (srHook SFAIL).
+
+* Rebuild the secondary site.
+
+Expected Observation: Cluster notices the nodes that are back. HANA instance get started. After a while, system replication for secondary site gets okay (srHook SOK).
 
 ==== Tests regarding the {saphana} instances of the secondary site
 
@@ -2628,7 +2700,28 @@ Expected Observation: Monitor operation on HANA resource on the master candidate
 
 * Kill _sapstartsrv_ of any {saphana} instance of the secondary.
 
-Expected Observation: Monitor operation on HANA resource on the master candidate at secondary gets failed. Cluster then restarts the HANA resource on the affected nodes.
+Expected Observation: Monitor operation on HANA resource on the master name server at secondary gets failed. Cluster then restarts the HANA resource on the affected nodes.
+
+
+=== Tests on the third site
+
+The third site is not controlled by the Linux cluster.
+No failure on third site should trigger any cluster action.
+Only effect might be third site´s srHook attribute changing from SOK to SFAIL,
+or vice versa.
+
+==== Tests regarding the complete third site
+
+This test category is simulating a complete site failure.
+
+* Power-off all nodes of the third site in parallel.
+
+Expected Observation: System replication for third site gets broken (srHook SFAIL).
+
+* Rebuild the third site.
+
+Expected Observation: After a while, system replication for third site gets okay (srHook SOK).
+
 
 
 == Administration
@@ -2647,7 +2740,7 @@ In your project, you should *do* the following:
   **DUPLICATE_PRIMARY_TIMEOUT=”7200”**.
 
 * Always make sure that the cluster configuration does not contain any left-over
-  client-prefer location constraints or fail-counts.
+  client-prefer location constraints or failcounts.
 
 * Before testing or beginning maintenance procedures, check if the cluster is
   in idle state.
@@ -2795,20 +2888,21 @@ FRA1                         SOK
 ROT1  30         4   hanaso2 SOK    S
 WDF1  1657838665 4   hanaso0 PRIM   P
 
-Hosts   clone_state gra gsh node_state roles                        score site 
--------------------------------------------------------------------------------
+Hosts   clone_state gra gsh node_state roles                        score  site 
+--------------------------------------------------------------------------------
 hanamm                      online
-hanaso0 PROMOTED    2.0 2.2 online     master1:master:worker:master 150   WDF1
-hanaso1 DEMOTED     2.0 2.2 online     slave:slave:worker:slave   140   WDF1
-hanaso2 DEMOTED     2.0 2.2 online     master1:master:worker:master 100   ROT1
-hanaso3 DEMOTED     2.0 2.2 online     slave:slave:worker:slave   80    ROT1
+hanaso0 PROMOTED    2.0 2.2 online     master1:master:worker:master 150    WDF1
+hanaso1 DEMOTED     2.0 2.2 online     slave:slave:worker:slave     -10000 WDF1
+hanaso2 DEMOTED     2.0 2.2 online     master1:master:worker:master 100    ROT1
+hanaso3 DEMOTED     2.0 2.2 online     slave:slave:worker:slave     -12200 ROT1
 
 hanaso0:~ #
 ----
 ==========
 
-The majority maker _hanamm_ does not run an {saphana} instance and therefore
+The majority maker _hanamm_ does not run an {saphana} instance and therefor
 neither has a role attribute nor a score or site value.
+The third HANA site FRA1 is not controlled by the Linux cluster. Therefor it doesnot have any attribute except the srHook status.
 
 ==== {saphana} LandscapeHostConfiguration
 
