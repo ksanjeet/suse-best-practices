@@ -6,9 +6,7 @@ include::Var_SLES4SAP-hana-scaleOut-multiTarget-PerfOpt-15-param.txt[]
 // Start of the document
 //
 
-= {SAPHana} System Replication Scale-Out Multi-Target - Performance Optimized Scenario
-// Fabian Herschel, Lars Pinne, Sanjeet Kumar Jha
-// 2022-12-05
+= {saphana} System Replication Scale-Out - Multi-Target Performance Optimized Scenario
 
 :Revision: 0.1
 // TODO PRIO3: revision here, or at very bottom? see very bottom...
@@ -46,6 +44,7 @@ document at hand describes the synchronous replication from memory into memory
 of the second system. This is the only method that allows the cluster to make a
 decision based on coded algorithms.
 
+
 === Abstract
 
 This guide describes planning, setup, and basic testing of {sles4sap} {prodNr}
@@ -63,13 +62,12 @@ From the application perspective the following variants are covered:
 
 From the infrastructure perspective the following variants are covered:
 
-- 3-site cluster with disk-based SBD fencing and a 4th non-cluster site ( [ A => B ] -> C )
-- 3-site cluster with disk-based SBD fencing, a 4th non-cluster site with a 5th non-cluster site invisible to the cluster is possible, but not explained in this guide ( [ A => B ] -> C -> D )
+- 3-site cluster with disk-based SBD fencing and a 4th non-cluster site (replication [ A => B ] -> C )
+// TODO PRIO3: - 3-site cluster with disk-based SBD fencing, a 4th non-cluster site with a 5th non-cluster site invisible to the cluster is possible, but not explained in this guide ( [ A => B ] -> C -> D )
 - 1-site cluster with disk-based SBD fencing and a 2nd non-cluster site is possible, but not explained in this guide
 - Other fencing is possible, but not explained here
 - On-premises deployment on physical and virtual machines
-- Public cloud deployment (usually needs additional documentation focusing on
-the cloud specific implementation details)
+- Public cloud deployment (usually needs additional documentation on cloud specific details)
 
 Deployment automation simplifies roll-out. There are several options available, particularly on public cloud platfoms. Ask your public cloud provider or your
 {SUSE} contact for details.
@@ -134,12 +132,6 @@ image::Multi-Target.svg[scaledwidth="100%"]
 With SAPHanaSR-ScaleOut, various {saphana} scale-out configurations are supported.
 Details on requirements and supported scenarios are given below.
 // TODO PRIO3: internal link to requirements section
-//In this guide, we describe two scenarios where {saphana} is configured for host
-//auto-failover. That means there are standby nodes which are managed by {saphana}.
-//A dedicated setup guide describes how to manage a specific HANA scale-out
-//configuration without standby-nodes. You will find background information on that
-//setup in a series of blog articles on {#towardsZeroDowntime}, for example 
-//https://www.suse.com/c/sap-hana-scale-out-system-replication-for-large-erp-systems/ .
 
 In this guide we will cover a scale-out scenario without standby nodes, thus there
 is no host auto-failover. More details are explained at
@@ -147,10 +139,9 @@ https://www.suse.com/c/sap-hana-scale-out-system-replication-for-large-erp-syste
 The scenario where {saphana} is configured for host auto-failover is explained at
 https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-scaleOut-PerfOpt-15/ .
 
-NOTE: For upgrading an existing {saphana} scale-out system replication cluster
-from SAPHanaSR-ScaleOut version 0.160, consult manual page
-SAPHanaSR-manageAttr(8) and the blog article
-https://www.suse.com/c/sap-hana-scale-out-multi-target-upgrade/ .
+NOTE: For upgrading an existing {saphana} scale-out system replication cluster from
+SAPHanaSR-ScaleOut version 0.160, consult manual page SAPHanaSR-manageAttr(8) and
+the blog article https://www.suse.com/c/sap-hana-scale-out-multi-target-upgrade/ .
 
 
 == Planning the installation
@@ -1961,18 +1952,22 @@ module matching your systems. In the example at hand the _softdog_ kernel module
 ----
 
 ==== Checking the cluster for the first time
+
 Now it is time to check and optionally start the cluster for the first time on
 all nodes.
+----
+# crm cluster run "crm cluster start"
+----
+// TODO PRIO3: output
 
-NOTE: All nodes should be started in parallel. Otherwise unseen nodes might get
-fenced.
+NOTE: All nodes should be started in parallel. Otherwise unseen nodes might get fenced.
 
 Check whether all cluster nodes have registered at the SBD device(s). See manual
 page cs_show_sbd_devices(8) for details.
 ----
 # cs_show_sbd_devices
 ----
-// TODO PRIO2: output
+// TODO PRIO3: output
 
 Check the cluster status with `crm_mon`. Use the option `-r` to also see
 resources which are configured but stopped.
@@ -2002,6 +1997,7 @@ stonith-sbd     (stonith:external/sbd): Started hanamm
 ----
 
 === Configuring cluster properties and resources
+
 This section describes how to configure bootstrap, STONITH, resources, and constraints
 using the _crm_ configure shell command as described in section
 _Configuring and Managing Cluster Resources (Command Line)_ of the
@@ -2024,6 +2020,7 @@ in a second step. This step is as follows:
 ----
 
 ==== Cluster bootstrap and more
+
 The first example defines the cluster bootstrap options including the resource and
 operation defaults.
 
@@ -2120,6 +2117,7 @@ best way to avoid unexpected cluster reactions is to
 ----
 
 ==== SAPHanaTopology
+
 Next, define the group of resources needed, before the {saphana} instances can be
 started. Prepare the changes in a text file, for example _crm-saphanatop.txt_,
 and load these with the _crm_ command.
@@ -2182,6 +2180,7 @@ Beside these parameters, the timeout values or the operations (start, monitor,
 stop) are typical values to be adjusted for your environment.
 
 ==== SAPHanaController
+
 Next, define the group of resources needed, before the {saphana} instances can be
 started. Edit the changes in a text file, for example `crm-saphanacon.txt` and
 load these with the command `crm`.
@@ -2249,7 +2248,6 @@ Add the configuration to the cluster.
 ----
 ==========
 
-// TODO PRIO2: make 1st col wide enough
 // [cols="1,2", options="header"]
 [width="100%",cols="40%,60%",options="header"]
 .Table Description of important Resource Agent parameter
@@ -2284,13 +2282,14 @@ new primary, all data will be overwritten by the system replication.
 Additional information about all parameters can be found with the command
 `man ocf_suse_SAPHana_Controller`.
 
-==== The virtual IP address
+==== The virtual IP address of the HANA primary
 
-The last resource to be added to the cluster is covering the virtual IP address.
+The last mandatory resource to be added to the cluster is covering the virtual
+IP address for the HANA primary master name server.
 Replace the bold string with your instance number, {saphana} system ID and the 
 virtual IP address.
 
-.Configure the IP Address
+.Configure the virtual IP address of the primary
 ==========
 
 [subs="specialchars,attributes"]
@@ -2308,15 +2307,13 @@ primitive rsc_ip_{refSID}_HDB{refInst} ocf:heartbeat:IPaddr2 \
 ----
 
 // !! The example title MUST NOT include a line break in the ADOC source !!
-//.In our setup we replace {refSID} by {mySID}, {refInst} by {Inst} and <IP> by {myVirtIP}
-//===========================
+.Replace {refSID} by {mySID}, {refInst} by {Inst}, <IP> by {myVirtIP}
 [subs="specialchars,attributes,quotes"]
 ----
-primitive rsc\_ip_**{SID}**_HDB**{Inst}** ocf:heartbeat:IPaddr2 \
+primitive rsc_ip_**{SID}**_HDB**{Inst}** ocf:heartbeat:IPaddr2 \
     op monitor interval="10s" timeout="20s" \
     params ip="*{myVirtIP}*"
 ----
-//===========================
 
 Load the file to the cluster.
 
@@ -2330,7 +2327,69 @@ In most installations, only the parameter *ip* needs to be set to the virtual
 IP address to be presented to the client systems.
 Use the command `man ocf_heartbeat_IPAddr2` for details on additional parameters.
 
+==== The virtual IP address of the HANA read-enabled secondary
+
+This optional resource is covering the virtual IP address for the read-enabled
+HANA secondary master name server.
+Replace the bold string with your instance number, {saphana} system ID and the 
+virtual IP address. 
+
+NOTE: In scale-out this works only for a {saphana} topology with exactly one
+master name server and exactly one slave node.
+
+.Configure the virtual IP address of the read-enabled secondary
+==========
+
+[subs="specialchars,attributes"]
+----
+# vi crm-vip-ro.txt
+----
+
+Enter the following to _crm-vip-ro.txt_:
+
+[subs="specialchars,attributes,quotes"]
+----
+primitive rsc_ip_ro_{refSID}_HDB{refInst} ocf:heartbeat:IPaddr2 \
+    op monitor interval="10s" timeout="20s" \
+    params ip="<IP-ro>"
+colocation col_ip_ro_with_secondary_{refSID}_HDB{refInst} \
+    2000: rsc_ip_ro_{refSID}_HDB{refInst}:Started \
+    msl_SAPHanaCon_{refSID}_HDB{refInst}:Slave
+location loc_ip_ro_not_master_{refSID}_HDB{refInst} \
+    rsc_ip_ro_{refSID}_HDB{refInst} \
+    rule -inf: hana_{refSIDLC}_roles ne master1:master:worker:master
+----
+
+// !! The example title MUST NOT include a line break in the ADOC source !!
+.Replace {refSID} by {mySID}, {refInst} by {Inst}, <IP-ro> by {myVipADSec}
+[subs="specialchars,attributes,quotes"]
+----
+primitive rsc\_ip_ro_**{SID}**\_HDB**{Inst}** ocf:heartbeat:IPaddr2 \
+    op monitor interval="10s" timeout="20s" \
+    params ip="*{myVipADSec}*"
+colocation col_ip_ro_with_secondary_**{SID}**\_HDB**{Inst}** \
+    2000: rsc_ip_ro_**{SID}**\_HDB**{Inst}**:Started \
+    msl_SAPHanaCon_**{SID}**\_HDB**{Inst}**:Slave
+location loc_ip_ro_not_master_**{SID}**\_HDB**{Inst}** \
+    rsc_ip_ro_**{SID}**\_HDB**{Inst}** \
+    rule -inf: hana_**{SIDLC}**_roles ne master1:master:worker:master
+----
+
+Load the file to the cluster.
+
+[subs="specialchars,attributes"]
+----
+# crm configure load update crm-vip-ro.txt
+----
+==========
+
+In most installations, only the parameter *ip* needs to be set to the virtual
+IP address to be presented to the client systems.
+Use the command `man ocf_heartbeat_IPAddr2` for details on additional parameters.
+See also manual page SAPHanaSR-ScaleOut_basic_cluster(7).
+
 ==== Constraints
+
 The constraints are organizing the correct placement of the virtual IP
 address for the client database access and the start order between the two
 resource agents SAPHana and SAPHanaTopology. The rules help to remove false 
@@ -2447,6 +2506,7 @@ This chapter is divided into two sections. Both are optional, depending oon your
 
 - The second section is about configuring the 3rd site in a multi-target setup after freshly installing the whole landscape using the procedures mentioned in the document so far.  
 
+
 === Upgrading an existing cluster of scale-out performance optimized HANA
 
 This section applies only if you plan to upgrade an existing not multi-target aware scale-out cluster into a multi-target aware one. This is not the general approach. Usually you should start with a fresh installation for {saphana} scale-out multi-target systems.
@@ -2516,7 +2576,7 @@ in the parameter sheet.
 
 [subs="specialchars,attributes"]
 ----
-~> hdbnsutil -sr_register --name=FRA --remoteHost=hanaso0 --remoteInstance=00 --replicationMode=async --operationMode=logreplay
+~> hdbnsutil -sr_register --name=FRA1 --remoteHost=hanaso0 --remoteInstance=00 --replicationMode=async --operationMode=logreplay
 ----
 
 
@@ -2570,7 +2630,10 @@ nodes are booted, are already normal members of the cluster and the {saphana}
 RDBMS is running. The system replication is in state *SYNC* represented by 'srHook SOK' for the secondary site.
 The cluster is idle, no actions are pending, no migration constraints left over, no failcounts left over.
 
-The expected results are given for SAPHanaController parameter AUTOMATED_REGISTER="false" and SBD parameter SBD_START_MODE="always". These are installation defaults.
+The expected results are given for SAPHanaController parameter
+AUTOMATED_REGISTER="false" and SBD parameter SBD_START_MODE="always". These
+are installation defaults. Further susChkSrv.py parameter action_on_lost="stop"
+is used.
 
 
 === Generic cluster tests
@@ -2591,7 +2654,9 @@ simulating SBD failures and much more.
 
 === Tests on the primary site
 
-The tests described in this section are checking the reaction on several failures of the primary site.
+The tests described in this section are checking the reaction on several failures
+of the primary site. Of course, primary site always is where the {saphana} primary
+is running. That site will change after most of this tests.
 
 ==== Tests regarding cluster nodes of the primary site
 
@@ -2628,7 +2693,6 @@ Prerequistes: A failed former primary sites has just been manually registered. T
 
 Expected Observation: The cluster accepts the registered site as secondary. The HANA resources are looking fine. After a while, system replication for the new secondary site gets okay (srHook SOK). 
 
-
 ==== Tests regarding the {saphana} instances of the primary site
 
 The tests listed here are checks about the {saphana} and cluster reactions
@@ -2657,7 +2721,9 @@ Expected Observation: {saphana} HA/DR provider stops HANA instance. Cluster noti
 
 === Tests on the secondary site
 
-The tests described in this section are checking the reaction on several failures of the secondary site.
+The tests described in this section are checking the reaction on several failures
+of the secondary site. Of course, secondary site always is where the {saphana}
+secondary is running.
 
 ==== Tests regarding cluster nodes of the secondary site
 
@@ -2686,7 +2752,6 @@ Expected Observation: {saphana} HA/DR provider stops HANA instance. Cluster noti
 * Kill hdbindexserver processs on the master nameserver node of the secondary.
 
 Expected Observation: {saphana} HA/DR provider stops HANA instance. Cluster notices the failure of monitor operation of the HANA resource and initiates a local restart of the secondary site.
-
 
 ==== Tests regarding the complete secondary site
 
@@ -2750,11 +2815,13 @@ In your project, you should *do* the following:
 
 * *Tune* the timeouts of operations of SAPHanaController and SAPHanaTopology.
 
-* Start with ** PREFER_SITE_TAKEOVER=true**, **AUTOMATED_REGISTER=false** and
-  **DUPLICATE_PRIMARY_TIMEOUT=”7200”**.
+* Start with SAPHanaController parameters **PREFER_SITE_TAKEOVER=true** ,
+  **AUTOMATED_REGISTER=false** and **DUPLICATE_PRIMARY_TIMEOUT=7200**.
 
+* Start with susChkSrv.py parameter **action_on_lost = stop**.
+ 
 * Always make sure that the cluster configuration does not contain any left-over
-  client-prefer location constraints or failcounts.
+  client-location constraints or failcounts.
 
 * Before testing or beginning maintenance procedures, check if the cluster is
   in idle state.
@@ -2771,13 +2838,18 @@ In your project, *avoid* the following:
   location rules mentioned in this setup guide are allowed.
 
 * As "migrating" or "moving" resources in _crm-shell_, HAWK or other tools would
-  add client-prefer location rules, these activities are completely *forbidden!*.
+  add client-location rules, these activities are completely *forbidden!*.
+
 
 === Monitoring and tools
+
 You can use the High Availability Web Konsole (HAWK), {saphana} Cockpit and
-different command line tools for cluster status requests.
+different command line tools for cluster status requests. Please see manual pages
+crm_mon(8), cs_wait_for_idle(8), SAPHanaSR_maintenance_examples(7),
+SAPHanaSR-showAttr(8), SAPHanaSrMultiTarget.py(7) and susChkSrv.py(7). 
 
 ==== HAWK – cluster status and more
+
 You can use an Internet browser to check the cluster status. Use the following URL:
 https://<node>:7630
 
@@ -2804,6 +2876,7 @@ Read the product manuals for a complete documentation of this powerful user
 interface.
 
 ==== {saphana} Cockpit
+
 Database-specific administration and checks can be done with {saphana} Cockpit.
 
 .{saphana} Cockpit – System Replication Overview
@@ -2818,8 +2891,9 @@ set _AUTOMATED_REGISTER=false_.
 A negative example is to un-register a secondary,
 disable the system replication on the primary, and similar actions.
 
-For all actions that change the system replication it is recommended to first check
-for the maintenance procedure.
+For all actions that change the system replication it is recommended to first
+check for the maintenance procedure. See manual page SAPHanaSR_maintenance_examples(7)
+and blog article https://www.suse.com/c/sap-hana-maintenance-suse-clusters/ .
 
 ==== Cluster command line tools
 
