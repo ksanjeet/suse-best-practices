@@ -191,7 +191,6 @@ majority maker:
 - 1 additional IP address for takeover
 -  optional: 2nd additional IP address for active/read-enabled setup
 
-
 // pools size is calculated like:
 //     shared = 1 * MEM
 //     data   = NODES * 1   * MEM
@@ -2327,6 +2326,58 @@ In most installations, only the parameter *ip* needs to be set to the virtual
 IP address to be presented to the client systems.
 Use the command `man ocf_heartbeat_IPAddr2` for details on additional parameters.
 
+==== Constraints
+
+The constraints are organizing the correct placement of the virtual IP address
+for the client database access and the start order between the two resource
+agents SAPHanaController and SAPHanaTopology.
+
+.Configure needed constraints
+==========
+
+[subs="specialchars,attributes"]
+----
+# vi crm-cs.txt
+----
+
+Enter the following to _crm-cs.txt_:
+
+[subs="specialchars,attributes"]
+----
+colocation col_saphana_ip_{refSID}_HDB{refInst} 2000: rsc_ip_{refSID}_HDB{refInst}:Started \
+    msl_SAPHanaCon_{refSID}_HDB{refInst}:Master
+
+order ord_SAPHana_{refSID}_HDB{refInst} Optional: cln_SAPHanaTop_{refSID}_HDB{refInst} \
+    msl_SAPHanaCon_{refSID}_HDB{refInst}
+
+location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_{refSID}_HDB{refInst} \
+    -inf: {refHostmj}
+location SAPHanaTop_not_on_majority_maker cln_SAPHanaTop_{refSID}_HDB{refInst} \
+    -inf: {refHostmj}
+----
+
+// !! The example title MUST NOT include a line break in the ADOC source !!
+.Replace {refSID} by {mySID}, {refInst} by {Inst}
+[subs="attributes,quotes"]
+----
+colocation col_saphana_ip_**{SID}**\_HDB**{Inst}** 2000: rsc_ip_**{SID}**\_HDB**{Inst}**:Started \
+    msl_SAPHanaCon_**{SID}**\_HDB**{Inst}**:Master
+
+order ord_SAPHana_**{SID}**\_HDB**{Inst}** Optional: cln_SAPHanaTop_**{SID}**\_HDB**{Inst}** \
+    msl_SAPHanaCon_**{SID}**\_HDB**{Inst}**
+
+location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_**{SID}**\_HDB**{Inst}** -inf: **{hanamm}**
+location SAPHanaTop_not_on_majority_maker cln_SAPHanaTop_**{SID}**_HDB**{Inst}** -inf: **{hanamm}**
+----
+
+Load the file to the cluster.
+
+[subs="specialchars,attributes"]
+----
+# configure load update crm-cs.txt
+----
+==========
+
 ==== The virtual IP address of the HANA read-enabled secondary
 
 This optional resource is covering the virtual IP address for the read-enabled
@@ -2388,60 +2439,6 @@ IP address to be presented to the client systems.
 Use the command `man ocf_heartbeat_IPAddr2` for details on additional parameters.
 See also manual page SAPHanaSR-ScaleOut_basic_cluster(7).
 
-==== Constraints
-
-The constraints are organizing the correct placement of the virtual IP
-address for the client database access and the start order between the two
-resource agents SAPHana and SAPHanaTopology. The rules help to remove false 
-positive messages from the _crm_mon_ command.
-
-.Configure needed constraints
-==========
-
-[subs="specialchars,attributes"]
-----
-# vi crm-cs.txt
-----
-
-Enter the following to _crm-cs.txt_:
-
-[subs="specialchars,attributes"]
-----
-colocation col_saphana_ip_{refSID}_HDB{refInst} 2000: rsc_ip_{refSID}_HDB{refInst}:Started \
-    msl_SAPHanaCon_{refSID}_HDB{refInst}:Master
-
-order ord_SAPHana_{refSID}_HDB{refInst} Optional: cln_SAPHanaTop_{refSID}_HDB{refInst} \
-    msl_SAPHanaCon_{refSID}_HDB{refInst}
-
-location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_{refSID}_HDB{refInst} \
-    -inf: {refHostmj}
-location SAPHanaTop_not_on_majority_maker cln_SAPHanaTop_{refSID}_HDB{refInst} \
-    -inf: {refHostmj}
-----
-
-
-// !! The example title MUST NOT include a line break in the ADOC source !!
-//.In our setup we replace {refSID} by {mySID} and {refInst} by {Inst}
-//===========================
-[subs="attributes,quotes"]
-----
-colocation col_saphana_ip_**{SID}**\_HDB**{Inst}** 2000: rsc_ip_**{SID}**\_HDB**{Inst}**:Started \
-    msl_SAPHanaCon_**{SID}**\_HDB**{Inst}**:Master
-
-order ord_SAPHana_**{SID}**\_HDB**{Inst}** Optional: cln_SAPHanaTop_**{SID}**\_HDB**{Inst}** \
-    msl_SAPHanaCon_**{SID}**\_HDB**{Inst}**
-
-location SAPHanaCon_not_on_majority_maker msl_SAPHanaCon_**{SID}**\_HDB**{Inst}** -inf: **{hanamm}**
-location SAPHanaTop_not_on_majority_maker cln_SAPHanaTop_**{SID}**_HDB**{Inst}** -inf: **{hanamm}**
-----
-//===========================
-
-Load the file to the cluster.
-[subs="specialchars,attributes"]
-----
-# configure load update crm-cs.txt
-----
-==========
 
 === Final steps
 
